@@ -327,6 +327,7 @@ class TreePanel(QWidget):
         return "/".join(parts)
 
     def load_tree(self):
+        expanded_paths = self._get_expanded_paths()
         self.tree.clear()
 
         if not config.data_dir.exists():
@@ -358,6 +359,33 @@ class TreePanel(QWidget):
             file_item.setIcon(0, file_icon)
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
+
+        self._restore_expanded_paths(expanded_paths)
+
+    def _get_expanded_paths(self):
+        paths = set()
+        for i in range(self.tree.topLevelItemCount()):
+            item = self.tree.topLevelItem(i)
+            self._collect_expanded_paths(item, paths)
+        return paths
+
+    def _collect_expanded_paths(self, item, paths):
+        if item.isExpanded():
+            paths.add(self._get_item_path(item))
+        for i in range(item.childCount()):
+            self._collect_expanded_paths(item.child(i), paths)
+
+    def _restore_expanded_paths(self, paths):
+        for i in range(self.tree.topLevelItemCount()):
+            item = self.tree.topLevelItem(i)
+            self._apply_expanded_paths(item, paths)
+
+    def _apply_expanded_paths(self, item, paths):
+        item_path = self._get_item_path(item)
+        if item_path in paths:
+            item.setExpanded(True)
+        for i in range(item.childCount()):
+            self._apply_expanded_paths(item.child(i), paths)
 
     def _load_directory(self, dir_path, parent_item):
         dirs = sorted([d for d in dir_path.iterdir() if d.is_dir() and not d.name.startswith(".")])
@@ -426,6 +454,40 @@ class TreePanel(QWidget):
         file_item.setData(0, Qt.UserRole + 1, "file")
         self.tree.setCurrentItem(file_item)
         parent_item.setExpanded(True)
+
+    def remove_folder_item(self, folder_path):
+        item = self._find_item_by_path(folder_path)
+        if item:
+            parent = item.parent()
+            if parent:
+                parent.removeChild(item)
+            else:
+                index = self.tree.indexOfTopLevelItem(item)
+                self.tree.takeTopLevelItem(index)
+
+    def remove_prompt_item(self, prompt):
+        item = self._find_item_by_path(str(prompt.rel_path).replace("\\", "/"))
+        if item:
+            parent = item.parent()
+            if parent:
+                parent.removeChild(item)
+            else:
+                index = self.tree.indexOfTopLevelItem(item)
+                self.tree.takeTopLevelItem(index)
+
+    def rename_folder_item(self, folder_path, new_name):
+        item = self._find_item_by_path(folder_path)
+        if item:
+            item.setText(0, new_name)
+            new_path = str(Path(folder_path).parent / new_name).replace("\\", "/")
+            if new_path.startswith("./"):
+                new_path = new_path[2:]
+            item.setIcon(0, self._folder_icon(new_path))
+
+    def rename_prompt_item(self, prompt, new_name):
+        item = self._find_item_by_path(str(prompt.rel_path).replace("\\", "/"))
+        if item:
+            item.setText(0, f"{new_name}{prompt.extension}")
 
     def select_prompt(self, prompt):
         self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)

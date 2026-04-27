@@ -186,7 +186,6 @@ class MainWindow(QMainWindow):
     def _on_item_moved(self, source_path: str, target_path: str):
         current = self.editor_panel.get_current_prompt()
         if not current:
-            self.tree_panel.load_tree()
             return
         current_rel = str(current.path.relative_to(config.data_dir)).replace("\\", "/")
         new_rel = None
@@ -199,7 +198,6 @@ class MainWindow(QMainWindow):
             if new_path.exists():
                 if not self.editor_panel.load_prompt(PromptFile(new_path)):
                     self.editor_panel.update_prompt_path(PromptFile(new_path))
-        self.tree_panel.load_tree()
 
     def _on_search(self, text: str):
         if text.strip():
@@ -279,7 +277,7 @@ class MainWindow(QMainWindow):
             if reply == QMessageBox.Yes:
                 if file_service.delete_prompt(prompt):
                     self.editor_panel.load_prompt(None)
-                    self.tree_panel.load_tree()
+                    self.tree_panel.remove_prompt_item(prompt)
 
     def _open_data_dir(self):
         try:
@@ -307,7 +305,7 @@ class MainWindow(QMainWindow):
             if new_path.startswith("./"):
                 new_path = new_path[2:]
             config.rename_folder_icons(folder_path, new_path)
-            self.tree_panel.load_tree()
+            self.tree_panel.rename_folder_item(folder_path, new_name)
 
     def _on_delete_folder(self, folder_path: str):
         reply = QMessageBox.question(
@@ -324,7 +322,7 @@ class MainWindow(QMainWindow):
                 if current_path == folder_path or current_path.startswith(folder_path + "/"):
                     self.editor_panel.load_prompt(None)
             if file_service.delete_folder(folder_path):
-                self.tree_panel.load_tree()
+                self.tree_panel.remove_folder_item(folder_path)
 
     def _on_rename_prompt(self, prompt: PromptFile):
         from PySide6.QtWidgets import QInputDialog
@@ -335,8 +333,7 @@ class MainWindow(QMainWindow):
             if not file_service.rename_prompt(prompt, new_name):
                 QMessageBox.warning(self, "错误", f'文件"{new_name}{prompt.extension}"已存在')
                 return
-            self.tree_panel.load_tree()
-            self.tree_panel.select_prompt(prompt)
+            self.tree_panel.rename_prompt_item(prompt, new_name)
 
     def _on_delete_prompt_from_tree(self, prompt: PromptFile):
         reply = QMessageBox.question(
@@ -351,7 +348,7 @@ class MainWindow(QMainWindow):
             if current and current.path == prompt.path:
                 self.editor_panel.load_prompt(None)
             if file_service.delete_prompt(prompt):
-                self.tree_panel.load_tree()
+                self.tree_panel.remove_prompt_item(prompt)
 
     def _setup_file_watcher(self):
         if config.enable_file_watcher:

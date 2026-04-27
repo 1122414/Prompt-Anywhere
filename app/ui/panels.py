@@ -320,12 +320,17 @@ class EditorPanel(QWidget):
 
         if prompt:
             content = prompt.read_content()
+            self.editor.blockSignals(True)
             self.editor.setPlainText(content)
+            self.editor.blockSignals(False)
+            self._is_modified = False
             if prompt.extension == ".txt":
                 self._current_mode = AppConstants.MODE_EDIT
             self.set_mode(self._current_mode)
         else:
+            self.editor.blockSignals(True)
             self.editor.clear()
+            self.editor.blockSignals(False)
             self.preview.clear()
 
         self._update_visibility()

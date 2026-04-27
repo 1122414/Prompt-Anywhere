@@ -2,7 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import Qt, QThread, QFileSystemWatcher
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -70,6 +70,7 @@ class MainWindow(QMainWindow):
         self._setup_tray()
         self._setup_hotkey()
         self._setup_shortcuts()
+        self._setup_file_watcher()
         self._load_data()
 
     def _setup_window_flags(self):
@@ -102,6 +103,8 @@ class MainWindow(QMainWindow):
         self.category_panel.setMaximumWidth(200)
         self.category_panel.category_selected.connect(self._on_category_selected)
         self.category_panel.new_category_requested.connect(self._on_new_category)
+        self.category_panel.rename_category_requested.connect(self._on_rename_category)
+        self.category_panel.delete_category_requested.connect(self._on_delete_category)
         self.splitter.addWidget(self.category_panel)
 
         self.prompt_list_panel = PromptListPanel()
@@ -109,6 +112,8 @@ class MainWindow(QMainWindow):
         self.prompt_list_panel.setMaximumWidth(300)
         self.prompt_list_panel.prompt_selected.connect(self._on_prompt_selected)
         self.prompt_list_panel.new_prompt_requested.connect(self._on_new_prompt)
+        self.prompt_list_panel.rename_prompt_requested.connect(self._on_rename_prompt)
+        self.prompt_list_panel.delete_prompt_requested.connect(self._on_delete_prompt_from_list)
         self.splitter.addWidget(self.prompt_list_panel)
 
         self.editor_panel = EditorPanel()
@@ -276,6 +281,77 @@ class MainWindow(QMainWindow):
                 subprocess.run(["xdg-open", str(config.data_dir)])
         except Exception:
             pass
+
+    def _on_rename_category(self, name: str):
+        dialog = CategoryDialog(self, name)
+        if dialog.exec() == CategoryDialog.Accepted:
+            new_name = dialog.get_name()
+            if new_name != name:
+                if file_service.rename_category(name, new_name):
+                    self.category_panel.load_categories()
+                    self.category_panel.select_category(new_name)
+                    self._load_prompts_for_current_category()
+
+    def _on_delete_category(self, name: str):
+        reply = QMessageBox.question(
+            self,
+            "确认删除",
+            Messages.CONFIRM_DELETE_CATEGORY.format(name=name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            current_prompt = self.editor_panel.get_current_prompt()
+            if current_prompt and current_prompt.category == name:
+                self.editor_panel.load_prompt(None)
+            if file_service.delete_category(name):
+                self.category_panel.load_categories()
+                self._load_prompts_for_current_category()
+
+    def _on_rename_prompt(self, prompt: PromptFile):
+        from PySide6.QtWidgets import QInputDialog
+        new_name, ok = QInputDialog.getText(
+            self, "重命名提示词", "新名称:", text=prompt.name
+        )
+        if ok and new_name and new_name != prompt.name:
+            if file_service.rename_prompt(prompt, new_name):
+                self._load_prompts_for_current_category()
+                self.prompt_list_panel.select_prompt(prompt)
+
+    def _on_delete_prompt_from_list(self, prompt: PromptFile):
+        reply = QMessageBox.question(
+            self,
+            "确认删除",
+            Messages.CONFIRM_DELETE_PROMPT.format(name=prompt.name),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            current = self.editor_panel.get_current_prompt()
+            if current and current.path == prompt.path:
+                self.editor_panel.load_prompt(None)
+            if file_service.delete_prompt(prompt):
+                self._load_prompts_for_current_category()
+
+    def _setup_file_watcher(self):
+        if config.enable_file_watcher:
+            self.file_watcher = QFileSystemWatcher(self)
+            self.file_watcher.directoryChanged.connect(self._on_dir_changed)
+            self._update_watched_dirs()
+
+    def _update_watched_dirs(self):
+        if hasattr(self, "file_watcher"):
+            self.file_watcher.removePaths(self.file_watcher.directories())
+            if config.data_dir.exists():
+                self.file_watcher.addPath(str(config.data_dir))
+                for subdir in config.data_dir.iterdir():
+                    if subdir.is_dir():
+                        self.file_watcher.addPath(str(subdir))
+
+    def _on_dir_changed(self, path: str):
+        self.category_panel.load_categories()
+        self._load_prompts_for_current_category()
+        self._update_watched_dirs()
 
     def _quit_app(self):
         self.close()

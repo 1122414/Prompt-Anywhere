@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
@@ -20,11 +21,14 @@ from app.constants import AppConstants, Messages
 from app.services.clipboard_service import clipboard_service
 from app.services.file_service import PromptFile, file_service
 from app.utils.markdown_utils import renderer
+from app.utils.syntax_highlighter import MarkdownHighlighter
 
 
 class CategoryPanel(QWidget):
     category_selected = Signal(str)
     new_category_requested = Signal()
+    rename_category_requested = Signal(str)
+    delete_category_requested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -51,11 +55,28 @@ class CategoryPanel(QWidget):
         self.list_widget = QListWidget()
         self.list_widget.setFrameShape(QListWidget.NoFrame)
         self.list_widget.currentTextChanged.connect(self._on_selection_changed)
+        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.list_widget)
 
     def _on_selection_changed(self, text):
         if text:
             self.category_selected.emit(text)
+
+    def _show_context_menu(self, position):
+        item = self.list_widget.itemAt(position)
+        if not item or item.text() == "全部":
+            return
+
+        menu = QMenu(self)
+        rename_action = menu.addAction("重命名")
+        delete_action = menu.addAction("删除")
+
+        action = menu.exec(self.list_widget.mapToGlobal(position))
+        if action == rename_action:
+            self.rename_category_requested.emit(item.text())
+        elif action == delete_action:
+            self.delete_category_requested.emit(item.text())
 
     def load_categories(self):
         self.list_widget.clear()
@@ -86,6 +107,8 @@ class CategoryPanel(QWidget):
 class PromptListPanel(QWidget):
     prompt_selected = Signal(object)
     new_prompt_requested = Signal()
+    rename_prompt_requested = Signal(object)
+    delete_prompt_requested = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -113,6 +136,8 @@ class PromptListPanel(QWidget):
         self.list_widget = QListWidget()
         self.list_widget.setFrameShape(QListWidget.NoFrame)
         self.list_widget.currentItemChanged.connect(self._on_item_changed)
+        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.list_widget)
 
         self.empty_label = QLabel(Messages.EMPTY_STATE_PROMPTS)
@@ -126,6 +151,25 @@ class PromptListPanel(QWidget):
             data = current.data(Qt.UserRole)
             if isinstance(data, PromptFile):
                 self.prompt_selected.emit(data)
+
+    def _show_context_menu(self, position):
+        item = self.list_widget.itemAt(position)
+        if not item:
+            return
+
+        prompt = item.data(Qt.UserRole)
+        if not isinstance(prompt, PromptFile):
+            return
+
+        menu = QMenu(self)
+        rename_action = menu.addAction("重命名")
+        delete_action = menu.addAction("删除")
+
+        action = menu.exec(self.list_widget.mapToGlobal(position))
+        if action == rename_action:
+            self.rename_prompt_requested.emit(prompt)
+        elif action == delete_action:
+            self.delete_prompt_requested.emit(prompt)
 
     def load_prompts(self, prompts: list):
         self._current_prompts = prompts
@@ -211,6 +255,7 @@ class EditorPanel(QWidget):
 
         self.editor = QPlainTextEdit()
         self.editor.textChanged.connect(self._on_text_changed)
+        self.highlighter = MarkdownHighlighter(self.editor.document())
         layout.addWidget(self.editor)
 
         self.preview = QTextBrowser()

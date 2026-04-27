@@ -1,3 +1,4 @@
+import os
 import shutil
 import sys
 import tempfile
@@ -19,15 +20,18 @@ class TestFileService(unittest.TestCase):
         self.data_dir = self.test_dir / "data"
         self.data_dir.mkdir()
 
+        os.environ["DATA_DIR"] = str(self.data_dir)
         Config._instance = None
+        FileService._instance = None
         self.config = Config()
-        self.config._config_data = {"storage": {"data_dir": str(self.data_dir)}}
 
         self.file_service = FileService()
         self.file_service._ensure_data_dir()
 
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
+        if "DATA_DIR" in os.environ:
+            del os.environ["DATA_DIR"]
         Config._instance = None
         FileService._instance = None
 
@@ -90,9 +94,10 @@ class TestSearchService(unittest.TestCase):
         self.data_dir = self.test_dir / "data"
         self.data_dir.mkdir()
 
+        os.environ["DATA_DIR"] = str(self.data_dir)
         Config._instance = None
+        FileService._instance = None
         self.config = Config()
-        self.config._config_data = {"storage": {"data_dir": str(self.data_dir)}}
 
         self.file_service = FileService()
         self.file_service.create_category("Test")
@@ -102,6 +107,8 @@ class TestSearchService(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.test_dir, ignore_errors=True)
+        if "DATA_DIR" in os.environ:
+            del os.environ["DATA_DIR"]
         Config._instance = None
         FileService._instance = None
 

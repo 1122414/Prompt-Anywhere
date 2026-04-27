@@ -197,7 +197,8 @@ class MainWindow(QMainWindow):
         if new_rel:
             new_path = config.data_dir / new_rel
             if new_path.exists():
-                self.editor_panel.load_prompt(PromptFile(new_path))
+                if not self.editor_panel.load_prompt(PromptFile(new_path)):
+                    self.editor_panel.update_prompt_path(PromptFile(new_path))
         self.tree_panel.load_tree()
 
     def _on_search(self, text: str):
@@ -306,10 +307,7 @@ class MainWindow(QMainWindow):
             new_path = str(Path(folder_path).parent / new_name).replace("\\", "/")
             if new_path.startswith("./"):
                 new_path = new_path[2:]
-            icon_key = config.folder_icon(folder_path)
-            if icon_key:
-                config.set_folder_icon(new_path, icon_key)
-                config.set_folder_icon(folder_path, "")
+            config.rename_folder_icons(folder_path, new_path)
             self.tree_panel.load_tree()
 
     def _on_delete_folder(self, folder_path: str):

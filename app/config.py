@@ -176,5 +176,25 @@ class Config:
             import logging
             logging.getLogger(__name__).warning(f"Failed to save config: {e}")
 
+    def rename_folder_icons(self, old_path: str, new_path: str) -> None:
+        icons = self._config_data.get("ui", {}).get("folder_icons", {})
+        if not icons:
+            return
+        updated = {}
+        for key, value in icons.items():
+            if key == old_path or key.startswith(old_path + "/"):
+                new_key = new_path + key[len(old_path):]
+                updated[new_key] = value
+            else:
+                updated[key] = value
+        self._config_data["ui"]["folder_icons"] = updated
+        config_path = Path(__file__).parent.parent / "config.yaml"
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(self._config_data, f, allow_unicode=True, sort_keys=False)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to save config: {e}")
+
 
 config = Config()

@@ -351,6 +351,10 @@ class EditorPanel(QWidget):
     def get_current_prompt(self) -> PromptFile:
         return self._current_prompt
 
+    def update_prompt_path(self, prompt: PromptFile) -> None:
+        self._current_prompt = prompt
+        self._update_title()
+
     def check_unsaved(self) -> str:
         if self._is_modified:
             reply = QMessageBox.question(

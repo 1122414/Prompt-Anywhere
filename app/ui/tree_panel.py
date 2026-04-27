@@ -99,6 +99,11 @@ class DraggableTreeWidget(QTreeWidget):
             try:
                 import shutil
                 shutil.move(str(Path(config.data_dir) / source_path), str(dest))
+                new_rel = str(dest.relative_to(config.data_dir)).replace("\\", "/")
+                icon_key = config.folder_icon(source_path)
+                if icon_key:
+                    config.set_folder_icon(new_rel, icon_key)
+                    config.set_folder_icon(source_path, "")
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"移动失败: {e}")
                 event.ignore()
@@ -124,7 +129,7 @@ class DraggableTreeWidget(QTreeWidget):
                     return
 
         self.item_moved.emit(source_path, target_path)
-        super().dropEvent(event)
+        event.accept()
 
 
 class TreePanel(QWidget):

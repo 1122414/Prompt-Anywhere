@@ -45,7 +45,9 @@ class DraggableTreeWidget(QTreeWidget):
             return ""
         parts = []
         while item:
-            parts.insert(0, item.text(0))
+            text = item.text(0)
+            if text != "全部":
+                parts.insert(0, text)
             item = item.parent()
         return "/".join(parts)
 
@@ -272,7 +274,9 @@ class TreePanel(QWidget):
             return ""
         parts = []
         while item:
-            parts.insert(0, item.text(0))
+            text = item.text(0)
+            if text != "全部":
+                parts.insert(0, text)
             item = item.parent()
         return "/".join(parts)
 

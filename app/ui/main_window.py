@@ -115,7 +115,6 @@ class MainWindow(QMainWindow):
         self.tree_panel.rename_prompt_requested.connect(self._on_rename_prompt)
         self.tree_panel.delete_folder_requested.connect(self._on_delete_folder)
         self.tree_panel.delete_prompt_requested.connect(self._on_delete_prompt_from_tree)
-        self.tree_panel.folder_icon_changed.connect(self._on_folder_icon_changed)
         self.splitter.addWidget(self.tree_panel)
 
         self.editor_panel = EditorPanel()
@@ -218,6 +217,8 @@ class MainWindow(QMainWindow):
             if prompt:
                 self.tree_panel.load_tree()
                 self.tree_panel.select_prompt(prompt)
+            else:
+                QMessageBox.warning(self, "创建失败", f'已存在同名文件"{name}{extension}"')
 
     def _on_save(self):
         prompt = self.editor_panel.get_current_prompt()
@@ -281,12 +282,14 @@ class MainWindow(QMainWindow):
             self, "重命名文件夹", "新名称:", text=old_name
         )
         if ok and new_name and new_name != old_name:
-            if file_service.rename_folder(folder_path, new_name):
-                icon_key = config.folder_icon(old_name)
-                if icon_key:
-                    config.set_folder_icon(new_name, icon_key)
-                    config.set_folder_icon(old_name, "")
-                self.tree_panel.load_tree()
+            if not file_service.rename_folder(folder_path, new_name):
+                QMessageBox.warning(self, "错误", f'文件夹"{new_name}"已存在')
+                return
+            icon_key = config.folder_icon(old_name)
+            if icon_key:
+                config.set_folder_icon(new_name, icon_key)
+                config.set_folder_icon(old_name, "")
+            self.tree_panel.load_tree()
 
     def _on_delete_folder(self, folder_path: str):
         reply = QMessageBox.question(
@@ -314,10 +317,6 @@ class MainWindow(QMainWindow):
             if file_service.rename_prompt(prompt, new_name):
                 self.tree_panel.load_tree()
                 self.tree_panel.select_prompt(prompt)
-
-    def _on_folder_icon_changed(self, folder_path: str, icon_key: str):
-        folder_name = Path(folder_path).name
-        config.set_folder_icon(folder_name, icon_key)
 
     def _on_delete_prompt_from_tree(self, prompt: PromptFile):
         reply = QMessageBox.question(

@@ -102,6 +102,10 @@ class DraggableTreeWidget(QTreeWidget):
         else:
             data = dragged.data(0, Qt.UserRole)
             if isinstance(data, PromptFile):
+                source_parent = str(data.path.parent.relative_to(config.data_dir)).replace("\\", "/")
+                if source_parent == target_path:
+                    event.ignore()
+                    return
                 dest = Path(config.data_dir) / target_path / data.path.name
                 if dest.exists():
                     QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件"{data.path.name}"')
@@ -116,7 +120,7 @@ class DraggableTreeWidget(QTreeWidget):
                     return
 
         self.item_moved.emit(source_path, target_path)
-        event.accept()
+        super().dropEvent(event)
         self.parent().load_tree()
 
 
@@ -178,14 +182,16 @@ class TreePanel(QWidget):
         current = self.tree.currentItem()
         path = self._get_item_path(current) if current else ""
         if path and not self._is_folder_item(current):
-            path = str(Path(path).parent)
+            parent = Path(path).parent
+            path = "" if parent == Path(".") else str(parent)
         self.new_folder_requested.emit(path)
 
     def _on_new_prompt(self):
         current = self.tree.currentItem()
         path = self._get_item_path(current) if current else ""
         if path and not self._is_folder_item(current):
-            path = str(Path(path).parent)
+            parent = Path(path).parent
+            path = "" if parent == Path(".") else str(parent)
         self.new_prompt_requested.emit(path)
 
     def _on_item_clicked(self, item, column):
@@ -203,8 +209,12 @@ class TreePanel(QWidget):
         menu = QMenu(self)
         data = item.data(0, Qt.UserRole)
         is_folder = self._is_folder_item(item)
+        is_all = item.text(0) == "全部"
 
-        if is_folder:
+        if is_all:
+            menu.addAction("新建文件夹", lambda: self.new_folder_requested.emit(""))
+            menu.addAction("新建文件", lambda: self.new_prompt_requested.emit(""))
+        elif is_folder:
             menu.addAction("新建文件夹", lambda: self.new_folder_requested.emit(self._get_item_path(item)))
             menu.addAction("新建文件", lambda: self.new_prompt_requested.emit(self._get_item_path(item)))
             menu.addSeparator()

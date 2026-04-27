@@ -88,6 +88,8 @@ class FileService:
             target_dir = self._resolve_path(parent_path)
             target_dir.mkdir(parents=True, exist_ok=True)
             file_path = target_dir / f"{name}{extension}"
+            if file_path.exists():
+                return None
             file_path.write_text(content, encoding=config.file_encoding)
             return PromptFile(file_path)
         except Exception as e:
@@ -98,6 +100,8 @@ class FileService:
         try:
             old_dir = self._resolve_path(old_path)
             new_dir = old_dir.parent / new_name
+            if new_dir.exists():
+                return False
             if old_dir.exists():
                 old_dir.rename(new_dir)
                 return True

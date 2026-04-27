@@ -224,7 +224,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "错误", f'文件夹"{name}"已存在')
                 return
             if file_service.create_folder(parent_path, name):
-                self.tree_panel.load_tree()
+                self.tree_panel.add_folder_item(parent_path, name)
 
     def _on_new_prompt(self, parent_path: str):
         dialog = PromptDialog(self, parent_path=parent_path)
@@ -234,8 +234,7 @@ class MainWindow(QMainWindow):
             content = dialog.get_content()
             prompt = file_service.create_prompt(parent_path, name, extension, content)
             if prompt:
-                self.tree_panel.load_tree()
-                self.tree_panel.select_prompt(prompt)
+                self.tree_panel.add_prompt_item(parent_path, prompt)
             else:
                 QMessageBox.warning(self, "创建失败", f'已存在同名文件"{name}{extension}"')
 

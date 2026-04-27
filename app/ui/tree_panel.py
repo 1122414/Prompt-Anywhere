@@ -125,8 +125,44 @@ class DraggableTreeWidget(QTreeWidget):
                     event.ignore()
                     return
 
+        if self._is_folder_item(dragged):
+            old_parent = dragged.parent()
+            if old_parent:
+                old_parent.removeChild(dragged)
+            else:
+                index = self.indexOfTopLevelItem(dragged)
+                self.takeTopLevelItem(index)
+            target.addChild(dragged)
+            self._update_folder_paths(dragged, new_rel)
+        else:
+            data = dragged.data(0, Qt.UserRole)
+            if isinstance(data, PromptFile):
+                old_parent = dragged.parent()
+                if old_parent:
+                    old_parent.removeChild(dragged)
+                else:
+                    index = self.indexOfTopLevelItem(dragged)
+                    self.takeTopLevelItem(index)
+                target.addChild(dragged)
+                data.path = dest
+                data.name = dest.stem
+                dragged.setData(0, Qt.UserRole, data)
+
         self.item_moved.emit(source_path, target_path)
         event.accept()
+
+    def _update_folder_paths(self, item, new_path):
+        item.setIcon(0, self.parent()._folder_icon(new_path))
+        for i in range(item.childCount()):
+            child = item.child(i)
+            child_path = self.parent()._get_item_path(child)
+            if self.parent()._is_folder_item(child):
+                self._update_folder_paths(child, child_path)
+            else:
+                data = child.data(0, Qt.UserRole)
+                if isinstance(data, PromptFile):
+                    data.rel_path = data.path.relative_to(config.data_dir)
+                    child.setData(0, Qt.UserRole, data)
 
 
 class TreePanel(QWidget):
@@ -343,6 +379,53 @@ class TreePanel(QWidget):
             file_item.setIcon(0, file_icon)
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
+
+    def _find_item_by_path(self, path):
+        if not path:
+            return None
+        for i in range(self.tree.topLevelItemCount()):
+            item = self.tree.topLevelItem(i)
+            if self._get_item_path(item) == path:
+                return item
+            result = self._find_item_in_children(item, path)
+            if result:
+                return result
+        return None
+
+    def _find_item_in_children(self, parent, path):
+        for i in range(parent.childCount()):
+            child = parent.child(i)
+            if self._get_item_path(child) == path:
+                return child
+            result = self._find_item_in_children(child, path)
+            if result:
+                return result
+        return None
+
+    def add_folder_item(self, parent_path, folder_name):
+        folder_path = (Path(parent_path) / folder_name).as_posix() if parent_path else folder_name
+        parent_item = self._find_item_by_path(parent_path) if parent_path else None
+        if parent_item is None:
+            parent_item = self.tree
+        folder_item = QTreeWidgetItem(parent_item)
+        folder_item.setText(0, folder_name)
+        folder_item.setIcon(0, self._folder_icon(folder_path))
+        folder_item.setData(0, Qt.UserRole + 1, "folder")
+        self.tree.setCurrentItem(folder_item)
+        parent_item.setExpanded(True)
+
+    def add_prompt_item(self, parent_path, prompt):
+        parent_item = self._find_item_by_path(parent_path) if parent_path else None
+        if parent_item is None:
+            parent_item = self.tree
+        file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
+        file_item = QTreeWidgetItem(parent_item)
+        file_item.setText(0, prompt.path.name)
+        file_item.setIcon(0, file_icon)
+        file_item.setData(0, Qt.UserRole, prompt)
+        file_item.setData(0, Qt.UserRole + 1, "file")
+        self.tree.setCurrentItem(file_item)
+        parent_item.setExpanded(True)
 
     def select_prompt(self, prompt):
         self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)

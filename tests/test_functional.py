@@ -14,6 +14,66 @@ from app.services.clipboard_service import ClipboardService
 from app.utils.markdown_utils import MarkdownRenderer
 
 
+class TestConfig(unittest.TestCase):
+    _env_keys = [
+        "APP_NAME", "APP_VERSION", "GLOBAL_HOTKEY", "ALWAYS_ON_TOP",
+        "START_MINIMIZED", "DATA_DIR", "EXPORT_DIR", "WINDOW_X",
+        "WINDOW_Y", "WINDOW_WIDTH", "WINDOW_HEIGHT", "DEFAULT_MODE",
+        "FILE_ENCODING", "PYGMENTS_STYLE", "SEARCH_CASE_INSENSITIVE",
+        "LOG_LEVEL", "ENABLE_FILE_WATCHER",
+        "MODEL_PROVIDER", "MODEL_NAME", "MODEL_API_KEY",
+        "MODEL_BASE_URL", "MODEL_TEMPERATURE",
+    ]
+
+    def setUp(self):
+        self._saved_env = {}
+        for key in self._env_keys:
+            self._saved_env[key] = os.environ.get(key)
+            if key in os.environ:
+                del os.environ[key]
+
+        Config._instance = None
+        self.config = Config()
+        self.config._config_data = {
+            "app": {"hotkey": "ctrl+shift+p", "always_on_top": False},
+            "storage": {"data_dir": "./custom_data"},
+            "ui": {"window_width": 1200},
+            "model": {"provider": "openai", "name": "gpt-4"},
+        }
+
+    def tearDown(self):
+        for key, value in self._saved_env.items():
+            if value is not None:
+                os.environ[key] = value
+            elif key in os.environ:
+                del os.environ[key]
+        Config._instance = None
+
+    def test_yaml_fallback_hotkey(self):
+        self.assertEqual(self.config.hotkey, "ctrl+shift+p")
+
+    def test_yaml_fallback_always_on_top(self):
+        self.assertEqual(self.config.always_on_top, False)
+
+    def test_yaml_fallback_window_width(self):
+        self.assertEqual(self.config.window_width, 1200)
+
+    def test_yaml_fallback_model_provider(self):
+        self.assertEqual(self.config.model_provider, "openai")
+
+    def test_yaml_fallback_model_name(self):
+        self.assertEqual(self.config.model_name, "gpt-4")
+
+    def test_env_overrides_yaml(self):
+        os.environ["GLOBAL_HOTKEY"] = "ctrl+alt+x"
+        Config._instance = None
+        config2 = Config()
+        config2._config_data = self.config._config_data
+        self.assertEqual(config2.hotkey, "ctrl+alt+x")
+        del os.environ["GLOBAL_HOTKEY"]
+        Config._instance = None
+
+
 class TestFileService(unittest.TestCase):
     def setUp(self):
         self.test_dir = Path(tempfile.mkdtemp())
@@ -165,6 +225,7 @@ def run_tests():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
+    suite.addTests(loader.loadTestsFromTestCase(TestConfig))
     suite.addTests(loader.loadTestsFromTestCase(TestFileService))
     suite.addTests(loader.loadTestsFromTestCase(TestSearchService))
     suite.addTests(loader.loadTestsFromTestCase(TestMarkdownRenderer))

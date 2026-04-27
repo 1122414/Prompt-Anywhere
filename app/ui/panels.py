@@ -280,14 +280,20 @@ class EditorPanel(QWidget):
             marker = " *" if self._is_modified else ""
             self.window().setWindowTitle(f"{self._current_prompt.name}{marker} - {AppConstants.APP_NAME}")
 
+    def _is_txt_file(self) -> bool:
+        return self._current_prompt is not None and self._current_prompt.extension == ".txt"
+
     def _update_visibility(self):
         has_prompt = self._current_prompt is not None
-        self.editor.setVisible(has_prompt and self._current_mode == AppConstants.MODE_EDIT)
-        self.preview.setVisible(has_prompt and self._current_mode == AppConstants.MODE_PREVIEW)
+        is_txt = self._is_txt_file()
+
+        self.editor.setVisible(has_prompt and (self._current_mode == AppConstants.MODE_EDIT or is_txt))
+        self.preview.setVisible(has_prompt and self._current_mode == AppConstants.MODE_PREVIEW and not is_txt)
         self.empty_label.setVisible(not has_prompt)
 
         self.mode_edit_btn.setChecked(self._current_mode == AppConstants.MODE_EDIT)
         self.mode_preview_btn.setChecked(self._current_mode == AppConstants.MODE_PREVIEW)
+        self.mode_preview_btn.setVisible(has_prompt and not is_txt)
 
         self.copy_btn.setEnabled(has_prompt)
         self.save_btn.setEnabled(has_prompt and self._is_modified)
@@ -315,6 +321,8 @@ class EditorPanel(QWidget):
         if prompt:
             content = prompt.read_content()
             self.editor.setPlainText(content)
+            if prompt.extension == ".txt":
+                self._current_mode = AppConstants.MODE_EDIT
             self.set_mode(self._current_mode)
         else:
             self.editor.clear()

@@ -48,6 +48,9 @@ class CategoryDialog(QDialog):
         if not name:
             QMessageBox.warning(self, "错误", "分类名称不能为空")
             return
+        if name == "全部":
+            QMessageBox.warning(self, "错误", "分类名称不能为"全部"")
+            return
         if "/" in name or "\\" in name:
             QMessageBox.warning(self, "错误", "分类名称不能包含 / 或 \\")
             return

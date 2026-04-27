@@ -16,3 +16,10 @@ ui:
   window_width: 900
   window_height: 600
   default_mode: "edit"
+
+model:
+  provider: ""
+  name: ""
+  api_key: ""
+  base_url: ""
+  temperature: 0.7

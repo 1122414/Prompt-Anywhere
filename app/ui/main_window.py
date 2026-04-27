@@ -47,8 +47,9 @@ class HotkeyThread(QThread):
             })
             hotkey.start()
             hotkey.join()
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Hotkey registration failed: {e}")
 
     def stop(self):
         self._running = False
@@ -279,8 +280,9 @@ class MainWindow(QMainWindow):
                 subprocess.run(["open", str(config.data_dir)])
             else:
                 subprocess.run(["xdg-open", str(config.data_dir)])
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to open data dir: {e}")
 
     def _on_rename_category(self, name: str):
         dialog = CategoryDialog(self, name)

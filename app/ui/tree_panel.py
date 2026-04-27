@@ -507,14 +507,4 @@ class TreePanel(QWidget):
                     return True
         return False
 
-    def get_selected_path(self):
-        item = self.tree.currentItem()
-        return self._get_item_path(item)
 
-    def get_selected_prompt(self):
-        item = self.tree.currentItem()
-        if item:
-            data = item.data(0, Qt.UserRole)
-            if isinstance(data, PromptFile):
-                return data
-        return None

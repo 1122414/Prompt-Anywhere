@@ -1,16 +1,10 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QDialog,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
-    QListWidget,
-    QListWidgetItem,
-    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
-    QSplitter,
     QTextBrowser,
     QVBoxLayout,
     QWidget,
@@ -18,187 +12,9 @@ from PySide6.QtWidgets import (
 
 from app.config import config
 from app.constants import AppConstants, Messages
-from app.services.clipboard_service import clipboard_service
-from app.services.file_service import PromptFile, file_service
+from app.services.file_service import PromptFile
 from app.utils.markdown_utils import renderer
 from app.utils.syntax_highlighter import MarkdownHighlighter
-
-
-class CategoryPanel(QWidget):
-    category_selected = Signal(str)
-    new_category_requested = Signal()
-    rename_category_requested = Signal(str)
-    delete_category_requested = Signal(str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._setup_ui()
-
-    def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-
-        header = QHBoxLayout()
-        header_label = QLabel("分类")
-        header_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        header.addWidget(header_label)
-        header.addStretch()
-
-        self.new_btn = QPushButton("+")
-        self.new_btn.setFixedSize(28, 28)
-        self.new_btn.setToolTip("新建分类")
-        self.new_btn.clicked.connect(self.new_category_requested.emit)
-        header.addWidget(self.new_btn)
-        layout.addLayout(header)
-
-        self.list_widget = QListWidget()
-        self.list_widget.setFrameShape(QListWidget.NoFrame)
-        self.list_widget.currentTextChanged.connect(self._on_selection_changed)
-        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
-        layout.addWidget(self.list_widget)
-
-    def _on_selection_changed(self, text):
-        if text:
-            self.category_selected.emit(text)
-
-    def _show_context_menu(self, position):
-        item = self.list_widget.itemAt(position)
-        if not item or item.text() == "全部":
-            return
-
-        menu = QMenu(self)
-        rename_action = menu.addAction("重命名")
-        delete_action = menu.addAction("删除")
-
-        action = menu.exec(self.list_widget.mapToGlobal(position))
-        if action == rename_action:
-            self.rename_category_requested.emit(item.text())
-        elif action == delete_action:
-            self.delete_category_requested.emit(item.text())
-
-    def load_categories(self):
-        self.list_widget.clear()
-        all_item = QListWidgetItem("全部")
-        all_item.setData(Qt.UserRole, "all")
-        self.list_widget.addItem(all_item)
-
-        categories = file_service.get_categories()
-        for cat in categories:
-            item = QListWidgetItem(cat)
-            item.setData(Qt.UserRole, "category")
-            self.list_widget.addItem(item)
-
-        self.list_widget.setCurrentRow(0)
-
-    def get_current_category(self) -> str:
-        item = self.list_widget.currentItem()
-        return item.text() if item else "全部"
-
-    def select_category(self, category: str):
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item.text() == category:
-                self.list_widget.setCurrentItem(item)
-                break
-
-
-class PromptListPanel(QWidget):
-    prompt_selected = Signal(object)
-    new_prompt_requested = Signal()
-    rename_prompt_requested = Signal(object)
-    delete_prompt_requested = Signal(object)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._setup_ui()
-        self._current_prompts = []
-
-    def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-
-        header = QHBoxLayout()
-        header_label = QLabel("提示词")
-        header_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        header.addWidget(header_label)
-        header.addStretch()
-
-        self.new_btn = QPushButton("+")
-        self.new_btn.setFixedSize(28, 28)
-        self.new_btn.setToolTip("新建提示词")
-        self.new_btn.clicked.connect(self.new_prompt_requested.emit)
-        header.addWidget(self.new_btn)
-        layout.addLayout(header)
-
-        self.list_widget = QListWidget()
-        self.list_widget.setFrameShape(QListWidget.NoFrame)
-        self.list_widget.currentItemChanged.connect(self._on_item_changed)
-        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
-        layout.addWidget(self.list_widget)
-
-        self.empty_label = QLabel(Messages.EMPTY_STATE_PROMPTS)
-        self.empty_label.setAlignment(Qt.AlignCenter)
-        self.empty_label.setStyleSheet("color: #888; padding: 20px;")
-        self.empty_label.hide()
-        layout.addWidget(self.empty_label)
-
-    def _on_item_changed(self, current, previous):
-        if current:
-            data = current.data(Qt.UserRole)
-            if isinstance(data, PromptFile):
-                self.prompt_selected.emit(data)
-
-    def _show_context_menu(self, position):
-        item = self.list_widget.itemAt(position)
-        if not item:
-            return
-
-        prompt = item.data(Qt.UserRole)
-        if not isinstance(prompt, PromptFile):
-            return
-
-        menu = QMenu(self)
-        rename_action = menu.addAction("重命名")
-        delete_action = menu.addAction("删除")
-
-        action = menu.exec(self.list_widget.mapToGlobal(position))
-        if action == rename_action:
-            self.rename_prompt_requested.emit(prompt)
-        elif action == delete_action:
-            self.delete_prompt_requested.emit(prompt)
-
-    def load_prompts(self, prompts: list):
-        self._current_prompts = prompts
-        self.list_widget.clear()
-
-        if not prompts:
-            self.empty_label.show()
-            self.list_widget.hide()
-        else:
-            self.empty_label.hide()
-            self.list_widget.show()
-            for prompt in prompts:
-                item = QListWidgetItem(f"{prompt.name}{prompt.extension}")
-                item.setData(Qt.UserRole, prompt)
-                self.list_widget.addItem(item)
-
-    def get_current_prompt(self) -> PromptFile:
-        item = self.list_widget.currentItem()
-        if item:
-            return item.data(Qt.UserRole)
-        return None
-
-    def select_prompt(self, prompt: PromptFile):
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            data = item.data(Qt.UserRole)
-            if isinstance(data, PromptFile) and data.path == prompt.path:
-                self.list_widget.setCurrentItem(item)
-                break
 
 
 class EditorPanel(QWidget):

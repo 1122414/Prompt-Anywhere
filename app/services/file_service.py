@@ -146,14 +146,6 @@ class FileService:
             logger.warning(f"Failed to delete prompt '{prompt_file.path}': {e}")
             return False
 
-    def export_prompt(self, prompt_file: PromptFile, dest_path: Path) -> bool:
-        try:
-            shutil.copy2(prompt_file.path, dest_path)
-            return True
-        except Exception as e:
-            logger.warning(f"Failed to export prompt to '{dest_path}': {e}")
-            return False
-
     def create_category(self, name: str) -> bool:
         return self.create_folder("", name)
 

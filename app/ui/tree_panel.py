@@ -74,8 +74,12 @@ class DraggableTreeWidget(QTreeWidget):
 
         source_path = self._get_item_path(dragged)
         target_path = self._get_item_path(target)
+        is_target_root = target.text(0) == "全部"
 
-        if not source_path or not target_path:
+        if not source_path:
+            event.ignore()
+            return
+        if not target_path and not is_target_root:
             event.ignore()
             return
 
@@ -235,7 +239,7 @@ class TreePanel(QWidget):
         layout = QVBoxLayout(dialog)
 
         btn_layout = QHBoxLayout()
-        current_key = config.folder_icon(item.text(0))
+        current_key = config.folder_icon(self._get_item_path(item))
 
         for key in _ICON_KEYS:
             if hasattr(self.style().StandardPixmap, key):

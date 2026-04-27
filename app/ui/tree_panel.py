@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
+    QMessageBox,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
@@ -16,6 +17,17 @@ from app.config import config
 from app.constants import AppConstants
 from app.services.file_service import PromptFile, file_service
 
+_ICON_KEYS = [
+    "SP_DirIcon",
+    "SP_DirOpenIcon",
+    "SP_DriveHDIcon",
+    "SP_DriveCDIcon",
+    "SP_ComputerIcon",
+    "SP_DesktopIcon",
+    "SP_TrashIcon",
+    "SP_NetworkIcon",
+]
+
 
 class TreePanel(QWidget):
     prompt_selected = Signal(object)
@@ -25,6 +37,8 @@ class TreePanel(QWidget):
     rename_prompt_requested = Signal(object)
     delete_folder_requested = Signal(str)
     delete_prompt_requested = Signal(object)
+    folder_icon_changed = Signal(str, str)
+    item_moved = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -59,7 +73,20 @@ class TreePanel(QWidget):
         self.tree.itemClicked.connect(self._on_item_clicked)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_context_menu)
+
+        self.tree.setDragEnabled(True)
+        self.tree.setAcceptDrops(True)
+        self.tree.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)
+        self.tree.setDefaultDropAction(Qt.MoveAction)
+        self.tree.setDropIndicatorShown(True)
+
         layout.addWidget(self.tree)
+
+    def _folder_icon(self, name: str):
+        icon_key = config.folder_icon(name)
+        if icon_key and hasattr(self.style().StandardPixmap, icon_key):
+            return self.style().standardIcon(getattr(self.style().StandardPixmap, icon_key))
+        return self.style().standardIcon(self.style().StandardPixmap.SP_DirIcon)
 
     def _on_new_folder(self):
         current = self.tree.currentItem()
@@ -95,6 +122,7 @@ class TreePanel(QWidget):
             menu.addAction("新建文件夹", lambda: self.new_folder_requested.emit(self._get_item_path(item)))
             menu.addAction("新建文件", lambda: self.new_prompt_requested.emit(self._get_item_path(item)))
             menu.addSeparator()
+            menu.addAction("选择图标", lambda: self._choose_icon(item))
             menu.addAction("重命名", lambda: self.rename_folder_requested.emit(self._get_item_path(item)))
             menu.addAction("删除", lambda: self.delete_folder_requested.emit(self._get_item_path(item)))
         else:
@@ -103,6 +131,49 @@ class TreePanel(QWidget):
                 menu.addAction("删除", lambda: self.delete_prompt_requested.emit(data))
 
         menu.exec(self.tree.mapToGlobal(position))
+
+    def _choose_icon(self, item):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QDialogButtonBox
+        dialog = QDialog(self)
+        dialog.setWindowTitle("选择文件夹图标")
+        dialog.setMinimumWidth(300)
+        layout = QVBoxLayout(dialog)
+
+        btn_layout = QHBoxLayout()
+        selected_key = None
+
+        for key in _ICON_KEYS:
+            if hasattr(self.style().StandardPixmap, key):
+                icon = self.style().standardIcon(getattr(self.style().StandardPixmap, key))
+                btn = QPushButton(icon, "")
+                btn.setFixedSize(40, 40)
+                btn.setCheckable(True)
+                btn.setProperty("icon_key", key)
+
+                def on_check(checked, k=key):
+                    if checked:
+                        for b in dialog.findChildren(QPushButton):
+                            if b.property("icon_key") and b.property("icon_key") != k:
+                                b.setChecked(False)
+                        dialog.setProperty("selected_key", k)
+
+                btn.clicked.connect(on_check)
+                btn_layout.addWidget(btn)
+
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+
+        box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        box.accepted.connect(dialog.accept)
+        box.rejected.connect(dialog.reject)
+        layout.addWidget(box)
+
+        if dialog.exec() == QDialog.Accepted:
+            selected = dialog.property("selected_key")
+            if selected:
+                folder_path = self._get_item_path(item)
+                self.folder_icon_changed.emit(folder_path, selected)
+                item.setIcon(0, self._folder_icon(Path(folder_path).name))
 
     def _is_folder_item(self, item) -> bool:
         if not item:
@@ -116,31 +187,43 @@ class TreePanel(QWidget):
         while item:
             parts.insert(0, item.text(0))
             item = item.parent()
-        return "/".join(parts[1:]) if len(parts) > 1 else ""
+        return "/".join(parts)
 
     def load_tree(self):
         self.tree.clear()
-        root = QTreeWidgetItem(self.tree)
-        root.setText(0, "全部")
-        root.setData(0, Qt.UserRole + 1, "folder")
-        root.setExpanded(True)
 
         if not config.data_dir.exists():
             return
 
-        self._load_directory(config.data_dir, root)
+        dirs = sorted([d for d in config.data_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
+        files = sorted([f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
+
+        file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
+
+        for d in dirs:
+            folder_item = QTreeWidgetItem(self.tree)
+            folder_item.setText(0, d.name)
+            folder_item.setIcon(0, self._folder_icon(d.name))
+            folder_item.setData(0, Qt.UserRole + 1, "folder")
+            self._load_directory(d, folder_item)
+
+        for f in files:
+            file_item = QTreeWidgetItem(self.tree)
+            file_item.setText(0, f.name)
+            file_item.setIcon(0, file_icon)
+            file_item.setData(0, Qt.UserRole, PromptFile(f))
+            file_item.setData(0, Qt.UserRole + 1, "file")
 
     def _load_directory(self, dir_path: Path, parent_item: QTreeWidgetItem):
         dirs = sorted([d for d in dir_path.iterdir() if d.is_dir() and not d.name.startswith(".")])
         files = sorted([f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
 
-        folder_icon = self.style().standardIcon(self.style().StandardPixmap.SP_DirIcon)
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 
         for d in dirs:
             folder_item = QTreeWidgetItem(parent_item)
             folder_item.setText(0, d.name)
-            folder_item.setIcon(0, folder_icon)
+            folder_item.setIcon(0, self._folder_icon(d.name))
             folder_item.setData(0, Qt.UserRole + 1, "folder")
             self._load_directory(d, folder_item)
 
@@ -151,6 +234,60 @@ class TreePanel(QWidget):
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
 
+    def dropEvent(self, event):
+        target = self.tree.itemAt(event.position().toPoint())
+        if not target or not self._is_folder_item(target):
+            event.ignore()
+            return
+
+        dragged = self.tree.currentItem()
+        if not dragged or dragged == target:
+            event.ignore()
+            return
+
+        source_path = self._get_item_path(dragged)
+        target_path = self._get_item_path(target)
+
+        if source_path == target_path or (target_path and source_path.startswith(target_path + "/")):
+            event.ignore()
+            return
+
+        if self._is_folder_item(dragged):
+            if target_path.startswith(source_path + "/"):
+                event.ignore()
+                return
+            dest = Path(config.data_dir) / target_path / Path(source_path).name
+            if dest.exists():
+                QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件夹"{Path(source_path).name}"')
+                event.ignore()
+                return
+            try:
+                import shutil
+                shutil.move(str(Path(config.data_dir) / source_path), str(dest))
+            except Exception as e:
+                QMessageBox.warning(self, "错误", f"移动失败: {e}")
+                event.ignore()
+                return
+        else:
+            data = dragged.data(0, Qt.UserRole)
+            if isinstance(data, PromptFile):
+                dest = Path(config.data_dir) / target_path / data.path.name
+                if dest.exists():
+                    QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件"{data.path.name}"')
+                    event.ignore()
+                    return
+                try:
+                    import shutil
+                    shutil.move(str(data.path), str(dest))
+                except Exception as e:
+                    QMessageBox.warning(self, "错误", f"移动失败: {e}")
+                    event.ignore()
+                    return
+
+        self.item_moved.emit(source_path, target_path)
+        self.load_tree()
+        event.accept()
+
     def select_prompt(self, prompt: PromptFile):
         self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)
 
@@ -160,6 +297,10 @@ class TreePanel(QWidget):
             data = child.data(0, Qt.UserRole)
             if isinstance(data, PromptFile) and data.path == prompt.path:
                 self.tree.setCurrentItem(child)
+                parent = child.parent()
+                while parent:
+                    parent.setExpanded(True)
+                    parent = parent.parent()
                 return True
             if self._is_folder_item(child):
                 if self._select_prompt_in_item(child, prompt):

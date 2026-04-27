@@ -30,6 +30,7 @@ _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "MODEL_API_KEY": ["model", "api_key"],
     "MODEL_BASE_URL": ["model", "base_url"],
     "MODEL_TEMPERATURE": ["model", "temperature"],
+    "FOLDER_ICONS": ["ui", "folder_icons"],
 }
 
 
@@ -156,6 +157,24 @@ class Config:
     @property
     def model_temperature(self) -> float:
         return float(self._get_env("MODEL_TEMPERATURE", "0.7"))
+
+    def folder_icon(self, folder_name: str) -> str:
+        icons = self._config_data.get("ui", {}).get("folder_icons", {})
+        return icons.get(folder_name, "")
+
+    def set_folder_icon(self, folder_name: str, icon_key: str) -> None:
+        if "ui" not in self._config_data:
+            self._config_data["ui"] = {}
+        if "folder_icons" not in self._config_data["ui"]:
+            self._config_data["ui"]["folder_icons"] = {}
+        self._config_data["ui"]["folder_icons"][folder_name] = icon_key
+        config_path = Path(__file__).parent.parent / "config.yaml"
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(self._config_data, f, allow_unicode=True, sort_keys=False)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to save config: {e}")
 
 
 config = Config()

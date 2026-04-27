@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
         self.tree_panel.rename_prompt_requested.connect(self._on_rename_prompt)
         self.tree_panel.delete_folder_requested.connect(self._on_delete_folder)
         self.tree_panel.delete_prompt_requested.connect(self._on_delete_prompt_from_tree)
+        self.tree_panel.folder_icon_changed.connect(self._on_folder_icon_changed)
         self.splitter.addWidget(self.tree_panel)
 
         self.editor_panel = EditorPanel()
@@ -200,6 +201,10 @@ class MainWindow(QMainWindow):
         dialog = FolderDialog(self, folder_path=parent_path)
         if dialog.exec() == FolderDialog.Accepted:
             name = dialog.get_name()
+            target = file_service._resolve_path(parent_path) / name
+            if target.exists():
+                QMessageBox.warning(self, "错误", f'文件夹"{name}"已存在')
+                return
             if file_service.create_folder(parent_path, name):
                 self.tree_panel.load_tree()
 
@@ -306,6 +311,10 @@ class MainWindow(QMainWindow):
             if file_service.rename_prompt(prompt, new_name):
                 self.tree_panel.load_tree()
                 self.tree_panel.select_prompt(prompt)
+
+    def _on_folder_icon_changed(self, folder_path: str, icon_key: str):
+        folder_name = Path(folder_path).name
+        config.set_folder_icon(folder_name, icon_key)
 
     def _on_delete_prompt_from_tree(self, prompt: PromptFile):
         reply = QMessageBox.question(

@@ -121,7 +121,6 @@ class DraggableTreeWidget(QTreeWidget):
 
         self.item_moved.emit(source_path, target_path)
         super().dropEvent(event)
-        self.parent().load_tree()
 
 
 class TreePanel(QWidget):

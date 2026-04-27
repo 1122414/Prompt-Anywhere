@@ -124,6 +124,8 @@ class FileService:
     def rename_prompt(self, prompt_file: PromptFile, new_name: str) -> bool:
         try:
             new_path = prompt_file.path.parent / f"{new_name}{prompt_file.extension}"
+            if new_path.exists():
+                return False
             prompt_file.path.rename(new_path)
             prompt_file.path = new_path
             prompt_file.name = new_name

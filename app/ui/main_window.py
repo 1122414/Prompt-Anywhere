@@ -314,9 +314,11 @@ class MainWindow(QMainWindow):
             self, "重命名提示词", "新名称:", text=prompt.name
         )
         if ok and new_name and new_name != prompt.name:
-            if file_service.rename_prompt(prompt, new_name):
-                self.tree_panel.load_tree()
-                self.tree_panel.select_prompt(prompt)
+            if not file_service.rename_prompt(prompt, new_name):
+                QMessageBox.warning(self, "错误", f'文件"{new_name}{prompt.extension}"已存在')
+                return
+            self.tree_panel.load_tree()
+            self.tree_panel.select_prompt(prompt)
 
     def _on_delete_prompt_from_tree(self, prompt: PromptFile):
         reply = QMessageBox.question(

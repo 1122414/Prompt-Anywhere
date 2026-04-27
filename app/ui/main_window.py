@@ -149,7 +149,7 @@ class MainWindow(QMainWindow):
 
     def _setup_hotkey(self):
         try:
-            hotkey_str = config.hotkey.lower().replace("+", "+")
+            hotkey_str = config.hotkey.lower()
             self.hotkey_thread = HotkeyThread(hotkey_str, self.toggle_visibility)
             self.hotkey_thread.start()
         except Exception:

@@ -1,6 +1,4 @@
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -9,14 +7,9 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPlainTextEdit,
-    QPushButton,
     QRadioButton,
     QVBoxLayout,
 )
-
-from app.config import config
-from app.constants import AppConstants, Messages
-from app.services.file_service import file_service
 
 
 class FolderDialog(QDialog):

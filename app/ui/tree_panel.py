@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -132,15 +134,20 @@ class TreePanel(QWidget):
         dirs = sorted([d for d in dir_path.iterdir() if d.is_dir() and not d.name.startswith(".")])
         files = sorted([f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
 
+        folder_icon = self.style().standardIcon(self.style().StandardPixmap.SP_DirIcon)
+        file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
+
         for d in dirs:
             folder_item = QTreeWidgetItem(parent_item)
             folder_item.setText(0, d.name)
+            folder_item.setIcon(0, folder_icon)
             folder_item.setData(0, Qt.UserRole + 1, "folder")
             self._load_directory(d, folder_item)
 
         for f in files:
             file_item = QTreeWidgetItem(parent_item)
             file_item.setText(0, f.name)
+            file_item.setIcon(0, file_icon)
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
 

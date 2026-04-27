@@ -197,7 +197,7 @@ class MainWindow(QMainWindow):
             break
 
     def _on_new_folder(self, parent_path: str):
-        dialog = FolderDialog(self, parent_path=parent_path)
+        dialog = FolderDialog(self, folder_path=parent_path)
         if dialog.exec() == FolderDialog.Accepted:
             name = dialog.get_name()
             if file_service.create_folder(parent_path, name):
@@ -290,8 +290,10 @@ class MainWindow(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             current = self.editor_panel.get_current_prompt()
-            if current and current.rel_path.as_posix().startswith(folder_path):
-                self.editor_panel.load_prompt(None)
+            if current:
+                current_path = current.rel_path.as_posix()
+                if current_path == folder_path or current_path.startswith(folder_path + "/"):
+                    self.editor_panel.load_prompt(None)
             if file_service.delete_folder(folder_path):
                 self.tree_panel.load_tree()
 

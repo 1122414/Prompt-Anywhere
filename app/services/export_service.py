@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from app.services.file_service import PromptFile
@@ -13,7 +14,6 @@ class ExportService:
 
     def export(self, prompt_file: PromptFile, dest_path: Path) -> bool:
         try:
-            import shutil
             shutil.copy2(prompt_file.path, dest_path)
             return True
         except Exception:

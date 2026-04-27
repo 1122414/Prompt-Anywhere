@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -97,7 +98,6 @@ class DraggableTreeWidget(QTreeWidget):
                 event.ignore()
                 return
             try:
-                import shutil
                 shutil.move(str(Path(config.data_dir) / source_path), str(dest))
                 new_rel = str(dest.relative_to(config.data_dir)).replace("\\", "/")
                 config.rename_folder_icons(source_path, new_rel)
@@ -118,7 +118,6 @@ class DraggableTreeWidget(QTreeWidget):
                     event.ignore()
                     return
                 try:
-                    import shutil
                     shutil.move(str(data.path), str(dest))
                 except Exception as e:
                     QMessageBox.warning(self, "错误", f"移动失败: {e}")

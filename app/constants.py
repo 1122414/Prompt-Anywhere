@@ -13,8 +13,6 @@ class Messages:
     COPIED = "已复制到剪贴板"
     SAVED = "已保存"
     UNSAVED_CHANGES = "当前内容未保存，是否保存更改？"
-    CONFIRM_DELETE_CATEGORY = '确定要删除分类"{name}"吗？\n该分类下的所有提示词文件将被删除。'
     CONFIRM_DELETE_PROMPT = '确定要删除提示词"{name}"吗？'
     EMPTY_STATE_PROMPTS = "暂无提示词，点击 + 新建"
-    EMPTY_STATE_CATEGORIES = "暂无分类，点击 + 新建"
     SEARCH_PLACEHOLDER = "搜索提示词..."

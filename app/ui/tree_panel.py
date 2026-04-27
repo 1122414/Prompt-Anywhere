@@ -29,6 +29,95 @@ _ICON_KEYS = [
 ]
 
 
+class DraggableTreeWidget(QTreeWidget):
+    item_moved = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)
+        self.setDefaultDropAction(Qt.MoveAction)
+        self.setDropIndicatorShown(True)
+
+    def _get_item_path(self, item):
+        if not item:
+            return ""
+        parts = []
+        while item:
+            parts.insert(0, item.text(0))
+            item = item.parent()
+        return "/".join(parts)
+
+    def _is_folder_item(self, item):
+        if not item:
+            return False
+        return item.data(0, Qt.UserRole + 1) == "folder"
+
+    def dropEvent(self, event):
+        target = self.itemAt(event.position().toPoint())
+        if not target or not self._is_folder_item(target):
+            event.ignore()
+            return
+
+        dragged_items = self.selectedItems()
+        if not dragged_items:
+            event.ignore()
+            return
+
+        dragged = dragged_items[0]
+        if dragged == target:
+            event.ignore()
+            return
+
+        source_path = self._get_item_path(dragged)
+        target_path = self._get_item_path(target)
+
+        if not source_path or not target_path:
+            event.ignore()
+            return
+
+        if source_path == target_path or target_path.startswith(source_path + "/"):
+            event.ignore()
+            return
+
+        if self._is_folder_item(dragged):
+            if source_path.startswith(target_path + "/"):
+                event.ignore()
+                return
+            dest = Path(config.data_dir) / target_path / Path(source_path).name
+            if dest.exists():
+                QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件夹"{Path(source_path).name}"')
+                event.ignore()
+                return
+            try:
+                import shutil
+                shutil.move(str(Path(config.data_dir) / source_path), str(dest))
+            except Exception as e:
+                QMessageBox.warning(self, "错误", f"移动失败: {e}")
+                event.ignore()
+                return
+        else:
+            data = dragged.data(0, Qt.UserRole)
+            if isinstance(data, PromptFile):
+                dest = Path(config.data_dir) / target_path / data.path.name
+                if dest.exists():
+                    QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件"{data.path.name}"')
+                    event.ignore()
+                    return
+                try:
+                    import shutil
+                    shutil.move(str(data.path), str(dest))
+                except Exception as e:
+                    QMessageBox.warning(self, "错误", f"移动失败: {e}")
+                    event.ignore()
+                    return
+
+        self.item_moved.emit(source_path, target_path)
+        event.accept()
+        self.parent().load_tree()
+
+
 class TreePanel(QWidget):
     prompt_selected = Signal(object)
     new_folder_requested = Signal(str)
@@ -37,8 +126,6 @@ class TreePanel(QWidget):
     rename_prompt_requested = Signal(object)
     delete_folder_requested = Signal(str)
     delete_prompt_requested = Signal(object)
-    folder_icon_changed = Signal(str, str)
-    item_moved = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -67,22 +154,19 @@ class TreePanel(QWidget):
 
         layout.addLayout(header)
 
-        self.tree = QTreeWidget()
+        self.tree = DraggableTreeWidget(self)
         self.tree.setHeaderHidden(True)
         self.tree.setFrameShape(QTreeWidget.NoFrame)
         self.tree.itemClicked.connect(self._on_item_clicked)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_context_menu)
-
-        self.tree.setDragEnabled(True)
-        self.tree.setAcceptDrops(True)
-        self.tree.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)
-        self.tree.setDefaultDropAction(Qt.MoveAction)
-        self.tree.setDropIndicatorShown(True)
-
+        self.tree.item_moved.connect(self._on_item_moved)
         layout.addWidget(self.tree)
 
-    def _folder_icon(self, name: str):
+    def _on_item_moved(self, source_path, target_path):
+        self.load_tree()
+
+    def _folder_icon(self, name):
         icon_key = config.folder_icon(name)
         if icon_key and hasattr(self.style().StandardPixmap, icon_key):
             return self.style().standardIcon(getattr(self.style().StandardPixmap, icon_key))
@@ -140,7 +224,7 @@ class TreePanel(QWidget):
         layout = QVBoxLayout(dialog)
 
         btn_layout = QHBoxLayout()
-        selected_key = None
+        current_key = config.folder_icon(item.text(0))
 
         for key in _ICON_KEYS:
             if hasattr(self.style().StandardPixmap, key):
@@ -149,6 +233,8 @@ class TreePanel(QWidget):
                 btn.setFixedSize(40, 40)
                 btn.setCheckable(True)
                 btn.setProperty("icon_key", key)
+                if key == current_key:
+                    btn.setChecked(True)
 
                 def on_check(checked, k=key):
                     if checked:
@@ -172,15 +258,16 @@ class TreePanel(QWidget):
             selected = dialog.property("selected_key")
             if selected:
                 folder_path = self._get_item_path(item)
-                self.folder_icon_changed.emit(folder_path, selected)
-                item.setIcon(0, self._folder_icon(Path(folder_path).name))
+                folder_name = Path(folder_path).name if folder_path else item.text(0)
+                config.set_folder_icon(folder_name, selected)
+                item.setIcon(0, self._folder_icon(folder_name))
 
-    def _is_folder_item(self, item) -> bool:
+    def _is_folder_item(self, item):
         if not item:
             return False
         return item.data(0, Qt.UserRole + 1) == "folder"
 
-    def _get_item_path(self, item) -> str:
+    def _get_item_path(self, item):
         if not item:
             return ""
         parts = []
@@ -194,6 +281,13 @@ class TreePanel(QWidget):
 
         if not config.data_dir.exists():
             return
+
+        all_item = QTreeWidgetItem(self.tree)
+        all_item.setText(0, "全部")
+        all_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_DirHomeIcon))
+        all_item.setData(0, Qt.UserRole + 1, "folder")
+        all_item.setExpanded(True)
+        all_item.setFlags(all_item.flags() & ~Qt.ItemIsSelectable)
 
         dirs = sorted([d for d in config.data_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
         files = sorted([f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
@@ -214,7 +308,7 @@ class TreePanel(QWidget):
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
 
-    def _load_directory(self, dir_path: Path, parent_item: QTreeWidgetItem):
+    def _load_directory(self, dir_path, parent_item):
         dirs = sorted([d for d in dir_path.iterdir() if d.is_dir() and not d.name.startswith(".")])
         files = sorted([f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
 
@@ -234,64 +328,10 @@ class TreePanel(QWidget):
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
 
-    def dropEvent(self, event):
-        target = self.tree.itemAt(event.position().toPoint())
-        if not target or not self._is_folder_item(target):
-            event.ignore()
-            return
-
-        dragged = self.tree.currentItem()
-        if not dragged or dragged == target:
-            event.ignore()
-            return
-
-        source_path = self._get_item_path(dragged)
-        target_path = self._get_item_path(target)
-
-        if source_path == target_path or (target_path and source_path.startswith(target_path + "/")):
-            event.ignore()
-            return
-
-        if self._is_folder_item(dragged):
-            if target_path.startswith(source_path + "/"):
-                event.ignore()
-                return
-            dest = Path(config.data_dir) / target_path / Path(source_path).name
-            if dest.exists():
-                QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件夹"{Path(source_path).name}"')
-                event.ignore()
-                return
-            try:
-                import shutil
-                shutil.move(str(Path(config.data_dir) / source_path), str(dest))
-            except Exception as e:
-                QMessageBox.warning(self, "错误", f"移动失败: {e}")
-                event.ignore()
-                return
-        else:
-            data = dragged.data(0, Qt.UserRole)
-            if isinstance(data, PromptFile):
-                dest = Path(config.data_dir) / target_path / data.path.name
-                if dest.exists():
-                    QMessageBox.warning(self, "错误", f'目标文件夹中已存在同名文件"{data.path.name}"')
-                    event.ignore()
-                    return
-                try:
-                    import shutil
-                    shutil.move(str(data.path), str(dest))
-                except Exception as e:
-                    QMessageBox.warning(self, "错误", f"移动失败: {e}")
-                    event.ignore()
-                    return
-
-        self.item_moved.emit(source_path, target_path)
-        self.load_tree()
-        event.accept()
-
-    def select_prompt(self, prompt: PromptFile):
+    def select_prompt(self, prompt):
         self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)
 
-    def _select_prompt_in_item(self, parent: QTreeWidgetItem, prompt: PromptFile) -> bool:
+    def _select_prompt_in_item(self, parent, prompt):
         for i in range(parent.childCount()):
             child = parent.child(i)
             data = child.data(0, Qt.UserRole)
@@ -307,11 +347,11 @@ class TreePanel(QWidget):
                     return True
         return False
 
-    def get_selected_path(self) -> str:
+    def get_selected_path(self):
         item = self.tree.currentItem()
         return self._get_item_path(item)
 
-    def get_selected_prompt(self) -> PromptFile:
+    def get_selected_prompt(self):
         item = self.tree.currentItem()
         if item:
             data = item.data(0, Qt.UserRole)

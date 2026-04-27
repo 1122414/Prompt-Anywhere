@@ -281,8 +281,11 @@ class MainWindow(QMainWindow):
             self, "重命名文件夹", "新名称:", text=old_name
         )
         if ok and new_name and new_name != old_name:
-            parent = str(Path(folder_path).parent)
             if file_service.rename_folder(folder_path, new_name):
+                icon_key = config.folder_icon(old_name)
+                if icon_key:
+                    config.set_folder_icon(new_name, icon_key)
+                    config.set_folder_icon(old_name, "")
                 self.tree_panel.load_tree()
 
     def _on_delete_folder(self, folder_path: str):

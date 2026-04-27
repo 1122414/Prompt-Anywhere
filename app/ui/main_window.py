@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
         self.tree_panel.rename_prompt_requested.connect(self._on_rename_prompt)
         self.tree_panel.delete_folder_requested.connect(self._on_delete_folder)
         self.tree_panel.delete_prompt_requested.connect(self._on_delete_prompt_from_tree)
+        self.tree_panel.tree.item_moved.connect(self._on_item_moved)
         self.splitter.addWidget(self.tree_panel)
 
         self.editor_panel = EditorPanel()
@@ -181,6 +182,23 @@ class MainWindow(QMainWindow):
             elif result == AppConstants.SAVE:
                 self._on_save()
         self.editor_panel.load_prompt(prompt)
+
+    def _on_item_moved(self, source_path: str, target_path: str):
+        current = self.editor_panel.get_current_prompt()
+        if not current:
+            self.tree_panel.load_tree()
+            return
+        current_rel = str(current.path.relative_to(config.data_dir)).replace("\\", "/")
+        new_rel = None
+        if current_rel == source_path:
+            new_rel = (Path(target_path) / Path(source_path).name).as_posix()
+        elif current_rel.startswith(source_path + "/"):
+            new_rel = (Path(target_path) / Path(source_path).name / current_rel[len(source_path) + 1:]).as_posix()
+        if new_rel:
+            new_path = config.data_dir / new_rel
+            if new_path.exists():
+                self.editor_panel.load_prompt(PromptFile(new_path))
+        self.tree_panel.load_tree()
 
     def _on_search(self, text: str):
         if text.strip():
@@ -285,10 +303,13 @@ class MainWindow(QMainWindow):
             if not file_service.rename_folder(folder_path, new_name):
                 QMessageBox.warning(self, "错误", f'文件夹"{new_name}"已存在')
                 return
-            icon_key = config.folder_icon(old_name)
+            new_path = str(Path(folder_path).parent / new_name).replace("\\", "/")
+            if new_path.startswith("./"):
+                new_path = new_path[2:]
+            icon_key = config.folder_icon(folder_path)
             if icon_key:
-                config.set_folder_icon(new_name, icon_key)
-                config.set_folder_icon(old_name, "")
+                config.set_folder_icon(new_path, icon_key)
+                config.set_folder_icon(folder_path, "")
             self.tree_panel.load_tree()
 
     def _on_delete_folder(self, folder_path: str):

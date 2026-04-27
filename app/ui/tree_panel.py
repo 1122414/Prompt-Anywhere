@@ -171,8 +171,8 @@ class TreePanel(QWidget):
     def _on_item_moved(self, source_path, target_path):
         self.load_tree()
 
-    def _folder_icon(self, name):
-        icon_key = config.folder_icon(name)
+    def _folder_icon(self, folder_path):
+        icon_key = config.folder_icon(folder_path)
         if icon_key and hasattr(self.style().StandardPixmap, icon_key):
             return self.style().standardIcon(getattr(self.style().StandardPixmap, icon_key))
         return self.style().standardIcon(self.style().StandardPixmap.SP_DirIcon)
@@ -269,9 +269,8 @@ class TreePanel(QWidget):
             selected = dialog.property("selected_key")
             if selected:
                 folder_path = self._get_item_path(item)
-                folder_name = Path(folder_path).name if folder_path else item.text(0)
-                config.set_folder_icon(folder_name, selected)
-                item.setIcon(0, self._folder_icon(folder_name))
+                config.set_folder_icon(folder_path, selected)
+                item.setIcon(0, self._folder_icon(folder_path))
 
     def _is_folder_item(self, item):
         if not item:
@@ -308,9 +307,10 @@ class TreePanel(QWidget):
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 
         for d in dirs:
+            rel_path = str(d.relative_to(config.data_dir)).replace("\\", "/")
             folder_item = QTreeWidgetItem(self.tree)
             folder_item.setText(0, d.name)
-            folder_item.setIcon(0, self._folder_icon(d.name))
+            folder_item.setIcon(0, self._folder_icon(rel_path))
             folder_item.setData(0, Qt.UserRole + 1, "folder")
             self._load_directory(d, folder_item)
 
@@ -328,9 +328,10 @@ class TreePanel(QWidget):
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 
         for d in dirs:
+            rel_path = str(d.relative_to(config.data_dir)).replace("\\", "/")
             folder_item = QTreeWidgetItem(parent_item)
             folder_item.setText(0, d.name)
-            folder_item.setIcon(0, self._folder_icon(d.name))
+            folder_item.setIcon(0, self._folder_icon(rel_path))
             folder_item.setData(0, Qt.UserRole + 1, "folder")
             self._load_directory(d, folder_item)
 

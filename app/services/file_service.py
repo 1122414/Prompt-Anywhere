@@ -77,6 +77,8 @@ class FileService:
     def create_folder(self, parent_path: str, name: str) -> bool:
         try:
             target = self._resolve_path(parent_path) / name
+            if target.exists():
+                return False
             target.mkdir(parents=True, exist_ok=True)
             return True
         except Exception as e:

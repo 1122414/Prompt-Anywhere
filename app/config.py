@@ -158,16 +158,16 @@ class Config:
     def model_temperature(self) -> float:
         return float(self._get_env("MODEL_TEMPERATURE", "0.7"))
 
-    def folder_icon(self, folder_name: str) -> str:
+    def folder_icon(self, folder_path: str) -> str:
         icons = self._config_data.get("ui", {}).get("folder_icons", {})
-        return icons.get(folder_name, "")
+        return icons.get(folder_path, "")
 
-    def set_folder_icon(self, folder_name: str, icon_key: str) -> None:
+    def set_folder_icon(self, folder_path: str, icon_key: str) -> None:
         if "ui" not in self._config_data:
             self._config_data["ui"] = {}
         if "folder_icons" not in self._config_data["ui"]:
             self._config_data["ui"]["folder_icons"] = {}
-        self._config_data["ui"]["folder_icons"][folder_name] = icon_key
+        self._config_data["ui"]["folder_icons"][folder_path] = icon_key
         config_path = Path(__file__).parent.parent / "config.yaml"
         try:
             with open(config_path, "w", encoding="utf-8") as f:

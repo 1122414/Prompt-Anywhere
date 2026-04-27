@@ -19,20 +19,26 @@ from app.constants import AppConstants, Messages
 from app.services.file_service import file_service
 
 
-class CategoryDialog(QDialog):
-    def __init__(self, parent=None, category_name: str = ""):
+class FolderDialog(QDialog):
+    def __init__(self, parent=None, folder_path: str = "", folder_name: str = ""):
         super().__init__(parent)
-        self.setWindowTitle("新建分类" if not category_name else "重命名分类")
+        self._folder_path = folder_path
+        self._old_name = folder_name
+        self.setWindowTitle("重命名文件夹" if folder_name else "新建文件夹")
         self.setMinimumWidth(300)
-        self._old_name = category_name
         self._setup_ui()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
 
+        if self._folder_path:
+            path_label = QLabel(f"父目录: {self._folder_path or '根目录'}")
+            path_label.setStyleSheet("color: #888;")
+            layout.addWidget(path_label)
+
         form = QFormLayout()
         self.name_input = QLineEdit(self._old_name)
-        self.name_input.setPlaceholderText("输入分类名称")
+        self.name_input.setPlaceholderText("输入文件夹名称")
         form.addRow("名称:", self.name_input)
         layout.addLayout(form)
 
@@ -46,16 +52,10 @@ class CategoryDialog(QDialog):
     def _on_accept(self):
         name = self.name_input.text().strip()
         if not name:
-            QMessageBox.warning(self, "错误", "分类名称不能为空")
-            return
-        if name == "全部":
-            QMessageBox.warning(self, "错误", '分类名称不能为"全部"')
+            QMessageBox.warning(self, "错误", "文件夹名称不能为空")
             return
         if "/" in name or "\\" in name:
-            QMessageBox.warning(self, "错误", "分类名称不能包含 / 或 \\")
-            return
-        if name != self._old_name and name in file_service.get_categories():
-            QMessageBox.warning(self, "错误", f'分类"{name}"已存在')
+            QMessageBox.warning(self, "错误", "名称不能包含 / 或 \\")
             return
         self.accept()
 
@@ -64,27 +64,26 @@ class CategoryDialog(QDialog):
 
 
 class PromptDialog(QDialog):
-    def __init__(self, parent=None, categories: list = None, default_category: str = ""):
+    def __init__(self, parent=None, parent_path: str = ""):
         super().__init__(parent)
+        self._parent_path = parent_path
         self.setWindowTitle("新建提示词")
         self.setMinimumWidth(400)
         self.setMinimumHeight(300)
-        self._setup_ui(categories or [], default_category)
+        self._setup_ui()
 
-    def _setup_ui(self, categories: list, default_category: str):
+    def _setup_ui(self):
         layout = QVBoxLayout(self)
+
+        path_label = QLabel(f"保存位置: {self._parent_path or '根目录'}")
+        path_label.setStyleSheet("color: #888;")
+        layout.addWidget(path_label)
 
         form = QFormLayout()
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("输入提示词名称")
         form.addRow("名称:", self.name_input)
-
-        self.category_combo = QComboBox()
-        self.category_combo.addItems(categories)
-        if default_category and default_category in categories:
-            self.category_combo.setCurrentText(default_category)
-        form.addRow("分类:", self.category_combo)
 
         type_layout = QHBoxLayout()
         self.md_radio = QRadioButton(".md (Markdown)")
@@ -121,9 +120,6 @@ class PromptDialog(QDialog):
 
     def get_name(self) -> str:
         return self.name_input.text().strip()
-
-    def get_category(self) -> str:
-        return self.category_combo.currentText()
 
     def get_extension(self) -> str:
         return ".md" if self.md_radio.isChecked() else ".txt"

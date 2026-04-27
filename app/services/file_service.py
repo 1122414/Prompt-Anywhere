@@ -1,7 +1,7 @@
 import logging
 import shutil
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 from app.config import config
 from app.constants import AppConstants
@@ -14,7 +14,7 @@ class PromptFile:
         self.path = path
         self.name = path.stem
         self.extension = path.suffix.lower()
-        self.category = path.parent.name
+        self.rel_path = path.relative_to(config.data_dir)
 
     def read_content(self) -> str:
         try:
@@ -45,73 +45,77 @@ class FileService:
         config.data_dir.mkdir(parents=True, exist_ok=True)
         config.export_dir.mkdir(parents=True, exist_ok=True)
 
+    def _resolve_path(self, rel_path: str) -> Path:
+        if rel_path:
+            return config.data_dir / rel_path
+        return config.data_dir
+
+    def iter_all_prompts(self) -> Iterator[PromptFile]:
+        if not config.data_dir.exists():
+            return
+        for path in sorted(config.data_dir.rglob("*")):
+            if path.is_file() and path.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS:
+                yield PromptFile(path)
+
+    def get_prompts(self, folder_path: str = "") -> List[PromptFile]:
+        target_dir = self._resolve_path(folder_path)
+        prompts = []
+        if target_dir.exists():
+            for item in sorted(target_dir.iterdir()):
+                if item.is_file() and item.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS:
+                    prompts.append(PromptFile(item))
+        return sorted(prompts, key=lambda p: p.name)
+
     def get_categories(self) -> List[str]:
         if not config.data_dir.exists():
             return []
-        categories = []
-        for item in sorted(config.data_dir.iterdir()):
-            if item.is_dir() and not item.name.startswith("."):
-                categories.append(item.name)
-        return categories
+        return sorted([
+            d.name for d in config.data_dir.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
+        ])
 
-    def get_prompts(self, category: Optional[str] = None) -> List[PromptFile]:
-        prompts = []
-        if category and category != "全部":
-            cat_dir = config.data_dir / category
-            if cat_dir.exists():
-                for item in sorted(cat_dir.iterdir()):
-                    if item.is_file() and item.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS:
-                        prompts.append(PromptFile(item))
-        else:
-            for cat_dir in config.data_dir.iterdir():
-                if cat_dir.is_dir() and not cat_dir.name.startswith("."):
-                    for item in sorted(cat_dir.iterdir()):
-                        if item.is_file() and item.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS:
-                            prompts.append(PromptFile(item))
-        return sorted(prompts, key=lambda p: p.name)
-
-    def create_category(self, name: str) -> bool:
+    def create_folder(self, parent_path: str, name: str) -> bool:
         try:
-            cat_dir = config.data_dir / name
-            cat_dir.mkdir(parents=True, exist_ok=True)
+            target = self._resolve_path(parent_path) / name
+            target.mkdir(parents=True, exist_ok=True)
             return True
         except Exception as e:
-            logger.warning(f"Failed to create category '{name}': {e}")
+            logger.warning(f"Failed to create folder '{name}' in '{parent_path}': {e}")
             return False
 
-    def rename_category(self, old_name: str, new_name: str) -> bool:
+    def create_prompt(self, parent_path: str, name: str, extension: str, content: str = "") -> Optional[PromptFile]:
         try:
-            old_dir = config.data_dir / old_name
-            new_dir = config.data_dir / new_name
-            if old_dir.exists():
-                old_dir.rename(new_dir)
-                return True
-            return False
-        except Exception as e:
-            logger.warning(f"Failed to rename category '{old_name}' -> '{new_name}': {e}")
-            return False
-
-    def delete_category(self, name: str) -> bool:
-        try:
-            cat_dir = config.data_dir / name
-            if cat_dir.exists():
-                shutil.rmtree(cat_dir)
-                return True
-            return False
-        except Exception as e:
-            logger.warning(f"Failed to delete category '{name}': {e}")
-            return False
-
-    def create_prompt(self, category: str, name: str, extension: str, content: str = "") -> Optional[PromptFile]:
-        try:
-            cat_dir = config.data_dir / category
-            cat_dir.mkdir(parents=True, exist_ok=True)
-            file_path = cat_dir / f"{name}{extension}"
+            target_dir = self._resolve_path(parent_path)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            file_path = target_dir / f"{name}{extension}"
             file_path.write_text(content, encoding=config.file_encoding)
             return PromptFile(file_path)
         except Exception as e:
             logger.warning(f"Failed to create prompt '{name}{extension}': {e}")
             return None
+
+    def rename_folder(self, old_path: str, new_name: str) -> bool:
+        try:
+            old_dir = self._resolve_path(old_path)
+            new_dir = old_dir.parent / new_name
+            if old_dir.exists():
+                old_dir.rename(new_dir)
+                return True
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to rename folder '{old_path}' -> '{new_name}': {e}")
+            return False
+
+    def delete_folder(self, path: str) -> bool:
+        try:
+            target = self._resolve_path(path)
+            if target.exists():
+                shutil.rmtree(target)
+                return True
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to delete folder '{path}': {e}")
+            return False
 
     def rename_prompt(self, prompt_file: PromptFile, new_name: str) -> bool:
         try:
@@ -141,6 +145,15 @@ class FileService:
         except Exception as e:
             logger.warning(f"Failed to export prompt to '{dest_path}': {e}")
             return False
+
+    def create_category(self, name: str) -> bool:
+        return self.create_folder("", name)
+
+    def rename_category(self, old_name: str, new_name: str) -> bool:
+        return self.rename_folder(old_name, new_name)
+
+    def delete_category(self, name: str) -> bool:
+        return self.delete_folder(name)
 
 
 file_service = FileService()

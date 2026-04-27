@@ -100,10 +100,7 @@ class DraggableTreeWidget(QTreeWidget):
                 import shutil
                 shutil.move(str(Path(config.data_dir) / source_path), str(dest))
                 new_rel = str(dest.relative_to(config.data_dir)).replace("\\", "/")
-                icon_key = config.folder_icon(source_path)
-                if icon_key:
-                    config.set_folder_icon(new_rel, icon_key)
-                    config.set_folder_icon(source_path, "")
+                config.rename_folder_icons(source_path, new_rel)
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"移动失败: {e}")
                 event.ignore()
@@ -174,11 +171,7 @@ class TreePanel(QWidget):
         self.tree.itemClicked.connect(self._on_item_clicked)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_context_menu)
-        self.tree.item_moved.connect(self._on_item_moved)
         layout.addWidget(self.tree)
-
-    def _on_item_moved(self, source_path, target_path):
-        self.load_tree()
 
     def _folder_icon(self, folder_path):
         icon_key = config.folder_icon(folder_path)

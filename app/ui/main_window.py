@@ -427,6 +427,8 @@ class MainWindow(QMainWindow):
             content = prompt.read_content()
             if clipboard_service.copy_text(content):
                 self.statusBar().showMessage(Messages.COPIED, 2000)
+                rel = prompt.path.relative_to(config.data_dir).as_posix()
+                state_service.add_recent_file(rel)
                 self._on_copy_done()
 
     def _on_export(self):
@@ -441,6 +443,8 @@ class MainWindow(QMainWindow):
             if dest:
                 if export_service.export(prompt, Path(dest)):
                     self.statusBar().showMessage(f"已导出到: {dest}", 3000)
+                    rel = prompt.path.relative_to(config.data_dir).as_posix()
+                    state_service.add_recent_file(rel)
 
     def _on_delete_prompt(self):
         prompt = self.editor_panel.get_current_prompt()

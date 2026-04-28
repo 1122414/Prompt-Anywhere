@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from app.config import config
 from app.constants import AppConstants
 from app.services.file_service import PromptFile, file_service
+from app.services.state_service import state_service
 
 _ICON_KEYS = [
     "SP_DirIcon",
@@ -259,8 +260,15 @@ class TreePanel(QWidget):
             menu.addAction("删除", lambda: self.delete_folder_requested.emit(self._get_item_path(item)))
         else:
             if isinstance(data, PromptFile):
-                menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
-                menu.addAction("删除", lambda: self.delete_prompt_requested.emit(data))
+                if isinstance(data, PromptFile):
+                    rel = data.path.relative_to(config.data_dir).as_posix()
+                    if state_service.is_favorite(rel):
+                        menu.addAction("取消收藏", lambda: self._toggle_favorite(rel, False))
+                    else:
+                        menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
+                    menu.addSeparator()
+                    menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
+                    menu.addAction("删除", lambda: self.delete_prompt_requested.emit(data))
 
         menu.exec(self.tree.mapToGlobal(position))
 
@@ -338,6 +346,40 @@ class TreePanel(QWidget):
         all_item.setData(0, Qt.UserRole + 1, "folder")
         all_item.setExpanded(True)
         all_item.setFlags(all_item.flags() & ~Qt.ItemIsSelectable)
+
+        favs = state_service.get_favorites()
+        if favs:
+            fav_item = QTreeWidgetItem(self.tree)
+            fav_item.setText(0, "⭐ 收藏")
+            fav_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_DialogApplyButton))
+            fav_item.setData(0, Qt.UserRole + 1, "special")
+            fav_item.setData(0, Qt.UserRole + 2, "favorites")
+            fav_item.setExpanded(True)
+            for fav_path in favs:
+                full = config.data_dir / fav_path
+                if full.exists():
+                    child = QTreeWidgetItem(fav_item)
+                    child.setText(0, full.stem)
+                    child.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
+                    child.setData(0, Qt.UserRole, PromptFile(full))
+                    child.setData(0, Qt.UserRole + 1, "file")
+
+        recent = state_service.get_recent_files()
+        if recent:
+            recent_item = QTreeWidgetItem(self.tree)
+            recent_item.setText(0, "🕐 最近使用")
+            recent_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
+            recent_item.setData(0, Qt.UserRole + 1, "special")
+            recent_item.setData(0, Qt.UserRole + 2, "recent")
+            recent_item.setExpanded(True)
+            for r in recent[:20]:
+                full = config.data_dir / r.get("path", "")
+                if full.exists():
+                    child = QTreeWidgetItem(recent_item)
+                    child.setText(0, full.stem)
+                    child.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
+                    child.setData(0, Qt.UserRole, PromptFile(full))
+                    child.setData(0, Qt.UserRole + 1, "file")
 
         dirs = sorted([d for d in config.data_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
         files = sorted([f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
@@ -482,6 +524,13 @@ class TreePanel(QWidget):
             if new_path.startswith("./"):
                 new_path = new_path[2:]
             item.setIcon(0, self._folder_icon(new_path))
+
+    def _toggle_favorite(self, file_path: str, add: bool):
+        if add:
+            state_service.add_favorite(file_path)
+        else:
+            state_service.remove_favorite(file_path)
+        self.load_tree()
 
     def rename_prompt_item(self, prompt, new_name):
         item = self._find_item_by_path(str(prompt.rel_path).replace("\\", "/"))

@@ -8,6 +8,7 @@ from typing import Iterator, List, Optional
 from PySide6.QtCore import QThread, Signal
 
 from app.config import config
+from app.services.state_service import state_service
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,14 @@ class SearchWorker(QThread):
                 score += len(content_matches) * 10
 
             if matched_fields:
+                if state_service.is_favorite(item.path):
+                    score += 50
+                recent_files = state_service.get_recent_files()
+                for recent in recent_files:
+                    if recent.get("path") == item.path:
+                        score += 30
+                        break
+
                 results.append(SearchResult(
                     path=item.path,
                     category=item.category,

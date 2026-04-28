@@ -613,6 +613,8 @@ class MainWindow(QMainWindow):
                         self.file_watcher.addPath(str(subdir))
 
     def _on_dir_changed(self, path: str):
+        if getattr(self, "_skip_watcher", False):
+            return
         search_service.rebuild_index()
         self.tree_panel.load_tree()
         self._update_watched_dirs()

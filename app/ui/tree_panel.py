@@ -591,6 +591,8 @@ class TreePanel(QWidget):
             return
         category, ok = QInputDialog.getItem(self, "批量移动", "移动到分类:", categories, 0, False)
         if ok and category:
+            main_win = self.window()
+            main_win._skip_watcher = True
             for prompt in prompts:
                 new_path = file_service._resolve_path(category) / prompt.path.name
                 if new_path.exists() and new_path != prompt.path:
@@ -599,6 +601,7 @@ class TreePanel(QWidget):
                     prompt.path.rename(new_path)
                 except Exception:
                     pass
+            main_win._skip_watcher = False
             search_service.rebuild_index()
             self.load_tree()
 
@@ -616,10 +619,14 @@ class TreePanel(QWidget):
             QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
+            main_win = self.window()
+            main_win._skip_watcher = True
             for prompt in prompts:
                 rel = prompt.path.relative_to(config.data_dir).as_posix()
                 if file_service.delete_prompt(prompt):
                     search_service.remove_index_file(rel)
+            main_win._skip_watcher = False
+            search_service.rebuild_index()
             self.load_tree()
 
     def _on_open_containing_folder(self):

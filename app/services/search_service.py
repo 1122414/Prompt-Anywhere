@@ -99,8 +99,12 @@ class SearchWorker(QThread):
         self.case_insensitive = case_insensitive
 
     def run(self):
-        results = self._do_search()
-        self.results_ready.emit(self.search_id, results)
+        try:
+            results = self._do_search()
+            self.results_ready.emit(self.search_id, results)
+        except Exception as e:
+            logger.warning(f"Search worker error: {e}")
+            self.results_ready.emit(self.search_id, [])
 
     def _do_search(self) -> List[SearchResult]:
         keyword = self.keyword.strip()
@@ -193,10 +197,6 @@ class SearchService:
     def search_async(self, keyword: str, case_insensitive: bool = True) -> int:
         self._current_search_id += 1
         search_id = self._current_search_id
-
-        if self._worker and self._worker.isRunning():
-            self._worker.quit()
-            self._worker.wait(500)
 
         self._worker = SearchWorker(search_id, keyword, self._index.get_items(), case_insensitive)
         return search_id, self._worker

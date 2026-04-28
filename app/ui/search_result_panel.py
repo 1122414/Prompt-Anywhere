@@ -45,6 +45,8 @@ class SearchResultWidget(QWidget):
             layout.addWidget(self.snippet_label)
 
     def _highlight(self, text: str, keyword: str) -> str:
+        import html
+        text = html.escape(text)
         if not keyword or not config.search_highlight_enabled:
             return text
         pattern = re.escape(keyword)

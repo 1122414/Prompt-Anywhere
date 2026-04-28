@@ -33,9 +33,12 @@ def _save_image(image: QImage, prompt_path: Path) -> str | None:
     if not assets_dir:
         return None
 
+    sub_dir = assets_dir / prompt_path.stem
+    sub_dir.mkdir(parents=True, exist_ok=True)
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{timestamp}.{config.pasted_image_format}"
-    filepath = assets_dir / filename
+    filepath = sub_dir / filename
 
     fmt = config.pasted_image_format.upper()
     if fmt == "JPG":
@@ -52,12 +55,15 @@ def _copy_image_file(src_path: Path, prompt_path: Path) -> str | None:
     if not assets_dir:
         return None
 
+    sub_dir = assets_dir / prompt_path.stem
+    sub_dir.mkdir(parents=True, exist_ok=True)
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = src_path.suffix.lower()
     if ext == ".jpeg":
         ext = ".jpg"
     filename = f"{timestamp}{ext}"
-    filepath = assets_dir / filename
+    filepath = sub_dir / filename
 
     try:
         shutil.copy2(str(src_path), str(filepath))

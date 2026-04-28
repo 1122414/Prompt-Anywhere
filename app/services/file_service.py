@@ -115,7 +115,8 @@ class FileService:
         try:
             target = self._resolve_path(path)
             if target.exists():
-                shutil.rmtree(target)
+                from send2trash import send2trash
+                send2trash(str(target))
                 return True
             return False
         except Exception as e:
@@ -138,7 +139,8 @@ class FileService:
     def delete_prompt(self, prompt_file: PromptFile) -> bool:
         try:
             if prompt_file.path.exists():
-                prompt_file.path.unlink()
+                from send2trash import send2trash
+                send2trash(str(prompt_file.path))
                 return True
             return False
         except Exception as e:

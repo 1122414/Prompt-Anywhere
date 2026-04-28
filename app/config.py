@@ -21,17 +21,12 @@ _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "EXPORT_DIR": ["storage", "export_dir"],
     "USER_STATE_PATH": ["storage", "user_state_path"],
     "FILE_ENCODING": ["storage", "file_encoding"],
-    "WINDOW_X": ["ui", "window_x"],
-    "WINDOW_Y": ["ui", "window_y"],
-    "WINDOW_WIDTH": ["ui", "window_width"],
-    "WINDOW_HEIGHT": ["ui", "window_height"],
     "DEFAULT_WINDOW_WIDTH": ["ui", "default_window_width"],
     "DEFAULT_WINDOW_HEIGHT": ["ui", "default_window_height"],
     "DEFAULT_WINDOW_OPACITY": ["ui", "default_window_opacity"],
     "MIN_WINDOW_OPACITY": ["ui", "min_window_opacity"],
     "MAX_WINDOW_OPACITY": ["ui", "max_window_opacity"],
     "DEFAULT_VIEW_MODE": ["ui", "default_view_mode"],
-    "DEFAULT_MODE": ["ui", "default_mode"],
     "PYGMENTS_STYLE": ["ui", "pygments_style"],
     "SEARCH_DEBOUNCE_MS": ["search", "debounce_ms"],
     "SEARCH_MAX_RESULTS": ["search", "max_results"],
@@ -117,22 +112,6 @@ class Config:
         return self._get_env("START_MINIMIZED", False)
 
     @property
-    def window_x(self) -> int:
-        return int(self._get_env("WINDOW_X", 100))
-
-    @property
-    def window_y(self) -> int:
-        return int(self._get_env("WINDOW_Y", 100))
-
-    @property
-    def window_width(self) -> int:
-        return int(self._get_env("WINDOW_WIDTH", 900))
-
-    @property
-    def window_height(self) -> int:
-        return int(self._get_env("WINDOW_HEIGHT", 600))
-
-    @property
     def default_window_width(self) -> int:
         return int(self._get_env("DEFAULT_WINDOW_WIDTH", 900))
 
@@ -173,10 +152,6 @@ class Config:
         return self._get_env("FILE_ENCODING", "utf-8")
 
     # ============ UI 配置 ============
-    @property
-    def default_mode(self) -> str:
-        return self._get_env("DEFAULT_MODE", "edit")
-
     @property
     def default_view_mode(self) -> str:
         return self._get_env("DEFAULT_VIEW_MODE", "edit")

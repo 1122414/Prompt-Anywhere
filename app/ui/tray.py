@@ -2,7 +2,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from app.constants import AppConstants
+from app.config import config
 
 
 class TrayManager(QSystemTrayIcon):
@@ -14,7 +14,7 @@ class TrayManager(QSystemTrayIcon):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setToolTip(AppConstants.APP_NAME)
+        self.setToolTip(config.app_name)
         self._setup_menu()
         self.activated.connect(self._on_activated)
 

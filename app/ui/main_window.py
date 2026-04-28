@@ -1,6 +1,9 @@
+import logging
 import subprocess
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import Qt, QThread, QTimer, QFileSystemWatcher, Signal
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
@@ -40,6 +43,7 @@ class HotkeyThread(QThread):
         super().__init__()
         self.hotkey_str = hotkey_str
         self._running = True
+        self._hotkey = None
 
     def run(self):
         try:
@@ -49,32 +53,32 @@ class HotkeyThread(QThread):
                 if self._running:
                     self.hotkey_pressed.emit()
 
-            hotkey = keyboard.GlobalHotKeys({
+            self._hotkey = keyboard.GlobalHotKeys({
                 self.hotkey_str: on_hotkey
             })
-            hotkey.start()
-            hotkey.join()
+            self._hotkey.start()
+            while self._running:
+                self.msleep(100)
+            self._hotkey.stop()
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Hotkey registration failed: {e}")
+            logger.warning(f"Hotkey registration failed: {e}")
 
     def stop(self):
         self._running = False
-        self.quit()
-        self.wait(1000)
+        self.wait(2000)
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(AppConstants.APP_NAME)
+        self.setWindowTitle(config.app_name)
         self.setMinimumSize(600, 400)
 
         window_state = state_service.get_window_state()
         width = window_state.get("width", config.default_window_width)
         height = window_state.get("height", config.default_window_height)
-        x = window_state.get("x", config.window_x)
-        y = window_state.get("y", config.window_y)
+        x = window_state.get("x", 100)
+        y = window_state.get("y", 100)
         self.resize(width, height)
         self.move(x, y)
 
@@ -98,11 +102,19 @@ class MainWindow(QMainWindow):
 
         search_service.rebuild_index()
 
+        last_category = state_service.get_last_selected_category()
+        if last_category:
+            self.tree_panel.select_category(last_category)
+
         last_file = state_service.get_last_selected_file()
         if last_file:
             full_path = config.data_dir / last_file
             if full_path.exists():
                 self._on_prompt_selected(PromptFile(full_path))
+
+        last_mode = state_service.get_last_view_mode()
+        if last_mode:
+            self.editor_panel.set_mode(last_mode)
 
     def _setup_window_flags(self):
         if self._always_on_top:
@@ -255,7 +267,7 @@ class MainWindow(QMainWindow):
         self.tray.toggle_quick_window.connect(self.toggle_quick)
         self.tray.new_prompt.connect(lambda: self._on_new_prompt(""))
         self.tray.open_data_dir.connect(self._open_data_dir)
-        self.tray.quit_app.connect(self._quit_app)
+        self.tray.quit_app.connect(self._force_quit)
         self.tray.show()
 
     def _setup_hotkey(self):
@@ -375,6 +387,7 @@ class MainWindow(QMainWindow):
             content = prompt.read_content()
             if clipboard_service.copy_text(content):
                 self.statusBar().showMessage(Messages.COPIED, 2000)
+                state_service.add_recent_file(result.path)
                 self._on_copy_done()
 
     def _on_search_escape(self):
@@ -610,12 +623,14 @@ class MainWindow(QMainWindow):
                 self._on_save()
 
         self._save_window_state()
+        event.ignore()
+        self.hide()
 
+    def _force_quit(self):
         if self.hotkey_thread:
             self.hotkey_thread.stop()
-
         self.tray.hide()
-        event.accept()
+        self._save_window_state()
         QApplication.instance().quit()
 
     def _save_window_state(self):

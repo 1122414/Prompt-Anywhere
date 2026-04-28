@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from app.config import config
 from app.constants import AppConstants
 from app.services.file_service import PromptFile, file_service
+from app.services.search_service import search_service
 from app.services.state_service import state_service
 
 _ICON_KEYS = [
@@ -291,6 +292,7 @@ class TreePanel(QWidget):
                         menu.addAction("取消收藏", lambda: self._toggle_favorite(rel, False))
                     else:
                         menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
+                    menu.addAction("复制内容", lambda: self._copy_prompt(data))
                     menu.addSeparator()
                     menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
                     menu.addAction("删除", lambda: self.delete_prompt_requested.emit(data))
@@ -550,6 +552,14 @@ class TreePanel(QWidget):
                 new_path = new_path[2:]
             item.setIcon(0, self._folder_icon(new_path))
 
+    def _copy_prompt(self, prompt: PromptFile):
+        from app.services.clipboard_service import clipboard_service
+        from app.services.state_service import state_service
+        content = prompt.read_content()
+        if clipboard_service.copy_text(content):
+            rel = prompt.path.relative_to(config.data_dir).as_posix()
+            state_service.add_recent_file(rel)
+
     def _toggle_favorite(self, file_path: str, add: bool):
         if add:
             state_service.add_favorite(file_path)
@@ -581,9 +591,9 @@ class TreePanel(QWidget):
                     continue
                 try:
                     prompt.path.rename(new_path)
-                    search_service.rebuild_index()
                 except Exception:
                     pass
+            search_service.rebuild_index()
             self.load_tree()
 
     def _on_batch_delete(self):
@@ -614,17 +624,17 @@ class TreePanel(QWidget):
             return
         import subprocess
         import sys
-        for prompt in prompts:
-            folder = str(prompt.path.parent)
-            try:
-                if sys.platform == "win32":
-                    subprocess.run(["explorer", "/select,", str(prompt.path)])
-                elif sys.platform == "darwin":
-                    subprocess.run(["open", "-R", str(prompt.path)])
-                else:
-                    subprocess.run(["xdg-open", folder])
-            except Exception:
-                pass
+        prompt = prompts[0]
+        folder = str(prompt.path.parent)
+        try:
+            if sys.platform == "win32":
+                subprocess.run(["explorer", "/select,", str(prompt.path)])
+            elif sys.platform == "darwin":
+                subprocess.run(["open", "-R", str(prompt.path)])
+            else:
+                subprocess.run(["xdg-open", folder])
+        except Exception:
+            pass
 
     def _on_batch_export(self):
         items = self.tree.selectedItems()
@@ -650,6 +660,15 @@ class TreePanel(QWidget):
                 pass
         if exported > 0:
             QMessageBox.information(self, "批量导出", f"成功导出 {exported} 个文件")
+
+    def select_category(self, category: str):
+        for i in range(self.tree.topLevelItemCount()):
+            item = self.tree.topLevelItem(i)
+            if item.text(0) == category and self._is_folder_item(item):
+                self.tree.setCurrentItem(item)
+                item.setExpanded(True)
+                return True
+        return False
 
     def select_prompt(self, prompt):
         self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)

@@ -104,10 +104,20 @@ class StateService:
     def add_recent_file(self, file_path: str):
         from datetime import datetime
         recent = self.get_recent_files()
-        recent = [r for r in recent if r.get("path") != file_path]
+        existing = None
+        for r in recent:
+            if r.get("path") == file_path:
+                existing = r
+                break
+        if existing:
+            recent.remove(existing)
+            use_count = existing.get("use_count", 0) + 1
+        else:
+            use_count = 1
         recent.insert(0, {
             "path": file_path,
             "last_used_at": datetime.now().isoformat(),
+            "use_count": use_count,
         })
         recent = recent[:50]
         self.set_recent_files(recent)

@@ -30,7 +30,7 @@ class EditorPanel(QWidget):
         super().__init__(parent)
         self._current_prompt = None
         self._is_modified = False
-        self._current_mode = config.default_mode
+        self._current_mode = config.default_view_mode
         self._setup_ui()
 
     def _setup_ui(self):
@@ -96,7 +96,7 @@ class EditorPanel(QWidget):
     def _update_title(self):
         if self._current_prompt:
             marker = " *" if self._is_modified else ""
-            self.window().setWindowTitle(f"{self._current_prompt.name}{marker} - {AppConstants.APP_NAME}")
+            self.window().setWindowTitle(f"{self._current_prompt.name}{marker} - {config.app_name}")
 
     def _is_txt_file(self) -> bool:
         return self._current_prompt is not None and self._current_prompt.extension == ".txt"

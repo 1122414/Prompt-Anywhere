@@ -1,5 +1,4 @@
 class AppConstants:
-    APP_NAME = "Prompt Anywhere"
     MODE_EDIT = "edit"
     MODE_PREVIEW = "preview"
     SAVE = "save"

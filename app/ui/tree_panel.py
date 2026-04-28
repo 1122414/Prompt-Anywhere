@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import config
-from app.constants import AppConstants
 from app.services.file_service import PromptFile, file_service
 from app.services.search_service import search_service
 from app.services.state_service import state_service

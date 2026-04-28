@@ -81,6 +81,16 @@ class Config:
                 return default
         return value if value is not None else default
 
+    def _get_pref(self, key: str, default: Any = None) -> Any:
+        try:
+            from app.services.state_service import state_service
+            pref = state_service.get_preference(key, None)
+            if pref is not None:
+                return pref
+        except Exception:
+            pass
+        return default
+
     @property
     def app_name(self) -> str:
         return self._get_env("APP_NAME", "Prompt Anywhere")
@@ -196,8 +206,25 @@ class Config:
 
     # ============ Esc 配置 ============
     @property
+    def max_recent_files(self) -> int:
+        val = int(self._get_pref("max_recent_files", int(self._get_env("MAX_RECENT_FILES", "10"))))
+        return max(1, min(val, 20))
+
+    @property
+    def search_selected_bg_color(self) -> str:
+        return self._get_pref("search_selected_bg_color", self._get_env("SEARCH_SELECTED_BG_COLOR", "#e3f2fd"))
+
+    @property
+    def copy_auto_hide(self) -> bool:
+        return self._get_pref("copy_auto_hide", self._get_env("COPY_AUTO_HIDE", True))
+
+    @property
+    def copy_hide_delay_ms(self) -> int:
+        return int(self._get_pref("copy_hide_delay_ms", int(self._get_env("COPY_HIDE_DELAY_MS", "200"))))
+
+    @property
     def esc_hide_enabled(self) -> bool:
-        return self._get_env("ESC_HIDE_ENABLED", True)
+        return self._get_pref("esc_hide_enabled", self._get_env("ESC_HIDE_ENABLED", True))
 
     # ============ 文件类型配置 ============
     @property

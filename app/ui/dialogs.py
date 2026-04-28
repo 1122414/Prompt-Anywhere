@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -8,6 +9,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QRadioButton,
+    QSlider,
+    QSpinBox,
     QVBoxLayout,
 )
 
@@ -119,3 +122,66 @@ class PromptDialog(QDialog):
 
     def get_content(self) -> str:
         return self.content_input.toPlainText()
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("设置")
+        self.setMinimumWidth(400)
+        self._setup_ui()
+        self._load_preferences()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+
+        form = QFormLayout()
+
+        self.max_recent_spin = QSpinBox()
+        self.max_recent_spin.setMinimum(1)
+        self.max_recent_spin.setMaximum(20)
+        self.max_recent_spin.setValue(10)
+        form.addRow("最近使用最多保留条数:", self.max_recent_spin)
+
+        self.bg_color_input = QLineEdit()
+        self.bg_color_input.setPlaceholderText("#e3f2fd")
+        form.addRow("搜索选中背景颜色:", self.bg_color_input)
+
+        self.copy_auto_hide_cb = QCheckBox("复制后自动隐藏窗口")
+        self.copy_auto_hide_cb.setChecked(True)
+        form.addRow(self.copy_auto_hide_cb)
+
+        self.copy_hide_delay_spin = QSpinBox()
+        self.copy_hide_delay_spin.setMinimum(0)
+        self.copy_hide_delay_spin.setMaximum(5000)
+        self.copy_hide_delay_spin.setSingleStep(50)
+        self.copy_hide_delay_spin.setSuffix(" ms")
+        form.addRow("复制后隐藏延迟:", self.copy_hide_delay_spin)
+
+        self.esc_hide_cb = QCheckBox("Esc 隐藏窗口")
+        self.esc_hide_cb.setChecked(True)
+        form.addRow(self.esc_hide_cb)
+
+        layout.addLayout(form)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _load_preferences(self):
+        from app.services.state_service import state_service
+        self.max_recent_spin.setValue(int(state_service.get_preference("max_recent_files", 10)))
+        self.bg_color_input.setText(state_service.get_preference("search_selected_bg_color", "#e3f2fd"))
+        self.copy_auto_hide_cb.setChecked(state_service.get_preference("copy_auto_hide", True))
+        self.copy_hide_delay_spin.setValue(int(state_service.get_preference("copy_hide_delay_ms", 200)))
+        self.esc_hide_cb.setChecked(state_service.get_preference("esc_hide_enabled", True))
+
+    def _on_accept(self):
+        from app.services.state_service import state_service
+        state_service.set_preference("max_recent_files", self.max_recent_spin.value())
+        state_service.set_preference("search_selected_bg_color", self.bg_color_input.text())
+        state_service.set_preference("copy_auto_hide", self.copy_auto_hide_cb.isChecked())
+        state_service.set_preference("copy_hide_delay_ms", self.copy_hide_delay_spin.value())
+        state_service.set_preference("esc_hide_enabled", self.esc_hide_cb.isChecked())
+        self.accept()

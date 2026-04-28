@@ -159,6 +159,12 @@ class MainWindow(QMainWindow):
         self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
         toolbar.addWidget(self.opacity_slider)
 
+        self.settings_btn = QPushButton("⚙")
+        self.settings_btn.setFixedWidth(30)
+        self.settings_btn.setToolTip("设置")
+        self.settings_btn.clicked.connect(self._on_settings)
+        toolbar.addWidget(self.settings_btn)
+
         layout.addLayout(toolbar)
 
         self.splitter = QSplitter(Qt.Horizontal)
@@ -258,6 +264,12 @@ class MainWindow(QMainWindow):
         opacity = value / 100.0
         self._window_opacity = opacity
         self.setWindowOpacity(opacity)
+
+    def _on_settings(self):
+        from app.ui.dialogs import SettingsDialog
+        dialog = SettingsDialog(self)
+        if dialog.exec() == SettingsDialog.Accepted:
+            self.statusBar().showMessage("设置已保存", 2000)
 
     def _setup_tray(self):
         self.tray = TrayManager(self)

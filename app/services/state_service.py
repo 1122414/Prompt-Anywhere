@@ -122,5 +122,17 @@ class StateService:
         recent = recent[:config.max_recent_files]
         self.set_recent_files(recent)
 
+    def get_preference(self, key: str, default=None):
+        return self._state.get("preferences", {}).get(key, default)
+
+    def set_preference(self, key: str, value):
+        if "preferences" not in self._state:
+            self._state["preferences"] = {}
+        self._state["preferences"][key] = value
+        self._save_state()
+
+    def get_all_preferences(self) -> dict:
+        return self._state.get("preferences", {})
+
 
 state_service = StateService()

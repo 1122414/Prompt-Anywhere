@@ -270,6 +270,7 @@ class MainWindow(QMainWindow):
         dialog = SettingsDialog(self)
         if dialog.exec() == SettingsDialog.Accepted:
             self.statusBar().showMessage("设置已保存", 2000)
+            self.tree_panel.load_tree()
 
     def _setup_tray(self):
         self.tray = TrayManager(self)
@@ -627,8 +628,51 @@ class MainWindow(QMainWindow):
                 self._on_save()
 
         self._save_window_state()
-        event.ignore()
-        self.hide()
+
+        if not state_service.get_preference("close_behavior_set", False):
+            self._show_close_dialog(event)
+        else:
+            behavior = state_service.get_preference("close_behavior", "minimize")
+            if behavior == "minimize":
+                event.ignore()
+                self.hide()
+            else:
+                self._force_quit()
+
+    def _show_close_dialog(self, event):
+        from PySide6.QtWidgets import QCheckBox, QDialog, QDialogButtonBox, QLabel, QVBoxLayout
+        dialog = QDialog(self)
+        dialog.setWindowTitle("关闭提示")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("点击关闭按钮，您希望："))
+        btn_layout = QHBoxLayout()
+        minimize_btn = QPushButton("最小化到托盘")
+        quit_btn = QPushButton("退出程序")
+        btn_layout.addWidget(minimize_btn)
+        btn_layout.addWidget(quit_btn)
+        layout.addLayout(btn_layout)
+        no_show_cb = QCheckBox("不再显示此提示")
+        layout.addWidget(no_show_cb)
+        dialog.setLayout(layout)
+
+        def on_minimize():
+            if no_show_cb.isChecked():
+                state_service.set_preference("close_behavior_set", True)
+                state_service.set_preference("close_behavior", "minimize")
+            dialog.accept()
+            event.ignore()
+            self.hide()
+
+        def on_quit():
+            if no_show_cb.isChecked():
+                state_service.set_preference("close_behavior_set", True)
+                state_service.set_preference("close_behavior", "quit")
+            dialog.accept()
+            self._force_quit()
+
+        minimize_btn.clicked.connect(on_minimize)
+        quit_btn.clicked.connect(on_quit)
+        dialog.exec()
 
     def _force_quit(self):
         if self.hotkey_thread:

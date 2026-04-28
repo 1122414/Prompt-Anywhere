@@ -134,5 +134,9 @@ class StateService:
     def get_all_preferences(self) -> dict:
         return self._state.get("preferences", {})
 
+    def reset_all_preferences(self):
+        self._state.pop("preferences", None)
+        self._save_state()
+
 
 state_service = StateService()

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPlainTextEdit,
+    QPushButton,
     QRadioButton,
     QSlider,
     QSpinBox,
@@ -167,6 +168,11 @@ class SettingsDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_accept)
         buttons.rejected.connect(self.reject)
+
+        reset_btn = QPushButton("重置所有设置")
+        reset_btn.clicked.connect(self._on_reset)
+        buttons.addButton(reset_btn, QDialogButtonBox.ResetRole)
+
         layout.addWidget(buttons)
 
     def _load_preferences(self):
@@ -185,3 +191,12 @@ class SettingsDialog(QDialog):
         state_service.set_preference("copy_hide_delay_ms", self.copy_hide_delay_spin.value())
         state_service.set_preference("esc_hide_enabled", self.esc_hide_cb.isChecked())
         self.accept()
+
+    def _on_reset(self):
+        from app.services.state_service import state_service
+        state_service.reset_all_preferences()
+        self.max_recent_spin.setValue(10)
+        self.bg_color_input.setText("#e3f2fd")
+        self.copy_auto_hide_cb.setChecked(True)
+        self.copy_hide_delay_spin.setValue(200)
+        self.esc_hide_cb.setChecked(True)

@@ -42,8 +42,6 @@ class SearchPopupWindow(QMainWindow):
     def show_results(self, results: list[SearchResult], keyword: str):
         self.panel.set_results(results, keyword)
         self.show()
-        self.raise_()
-        self.activateWindow()
         if self.panel.result_list.count() > 0:
             self.panel.select_first()
 

@@ -47,9 +47,11 @@ class SearchResultPanel(QWidget):
             QListWidget::item {{
                 border-bottom: 1px solid #eee;
                 padding: 6px 8px;
+                color: #333;
             }}
             QListWidget::item:selected {{
                 background-color: {config.search_selected_bg_color};
+                color: #000;
             }}
             QListWidget::item:hover {{
                 background-color: #f0f0f0;

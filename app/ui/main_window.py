@@ -362,15 +362,19 @@ class MainWindow(QMainWindow):
 
     def _show_search_results(self):
         self.tree_panel.setVisible(False)
+        self.editor_panel.setVisible(False)
         self.search_result_panel.setVisible(True)
+        self.splitter.setSizes([0, 800, 0])
         self.search_result_panel.setFocus()
-        if self.search_result_panel.list_widget.count() > 0:
+        if self.search_result_panel.result_list.count() > 0:
             self.search_result_panel.select_first()
 
     def _hide_search_results(self):
         self.search_result_panel.setVisible(False)
         self.search_result_panel.clear_results()
         self.tree_panel.setVisible(True)
+        self.editor_panel.setVisible(True)
+        self.splitter.setSizes([280, 0, 620])
 
     def _on_search_result_selected(self, result: SearchResult):
         full_path = config.data_dir / result.path

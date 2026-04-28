@@ -8,10 +8,12 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSlider,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -23,6 +25,7 @@ from app.services.clipboard_service import clipboard_service
 from app.services.export_service import export_service
 from app.services.file_service import PromptFile, file_service
 from app.services.search_service import SearchResult, search_service
+from app.services.state_service import state_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
 from app.ui.search_result_panel import SearchResultPanel
@@ -66,10 +69,19 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(AppConstants.APP_NAME)
         self.setMinimumSize(600, 400)
-        self.resize(config.window_width, config.window_height)
-        self.move(config.window_x, config.window_y)
 
-        self._always_on_top = config.always_on_top
+        window_state = state_service.get_window_state()
+        width = window_state.get("width", config.default_window_width)
+        height = window_state.get("height", config.default_window_height)
+        x = window_state.get("x", config.window_x)
+        y = window_state.get("y", config.window_y)
+        self.resize(width, height)
+        self.move(x, y)
+
+        self._always_on_top = window_state.get("always_on_top", config.always_on_top)
+        self._window_opacity = window_state.get("opacity", config.default_window_opacity)
+        self.setWindowOpacity(self._window_opacity)
+
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._do_search)
@@ -85,6 +97,12 @@ class MainWindow(QMainWindow):
         self._load_data()
 
         search_service.rebuild_index()
+
+        last_file = state_service.get_last_selected_file()
+        if last_file:
+            full_path = config.data_dir / last_file
+            if full_path.exists():
+                self._on_prompt_selected(PromptFile(full_path))
 
     def _setup_window_flags(self):
         if self._always_on_top:
@@ -111,6 +129,15 @@ class MainWindow(QMainWindow):
         self.pin_btn.setChecked(self._always_on_top)
         self.pin_btn.clicked.connect(self._toggle_always_on_top)
         toolbar.addWidget(self.pin_btn)
+
+        toolbar.addWidget(QLabel("透明度:"))
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setMinimum(int(config.min_window_opacity * 100))
+        self.opacity_slider.setMaximum(int(config.max_window_opacity * 100))
+        self.opacity_slider.setValue(int(self._window_opacity * 100))
+        self.opacity_slider.setFixedWidth(100)
+        self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
+        toolbar.addWidget(self.opacity_slider)
 
         layout.addLayout(toolbar)
 
@@ -156,6 +183,11 @@ class MainWindow(QMainWindow):
         else:
             self.pin_btn.setText("置顶")
             self.pin_btn.setChecked(False)
+
+    def _on_opacity_changed(self, value: int):
+        opacity = value / 100.0
+        self._window_opacity = opacity
+        self.setWindowOpacity(opacity)
 
     def _setup_tray(self):
         self.tray = TrayManager(self)
@@ -203,6 +235,10 @@ class MainWindow(QMainWindow):
             elif result == AppConstants.SAVE:
                 self._on_save()
         self.editor_panel.load_prompt(prompt)
+        if prompt:
+            rel = prompt.path.relative_to(config.data_dir).as_posix()
+            state_service.set_last_selected_file(rel)
+            state_service.add_recent_file(rel)
 
     def _on_item_moved(self, source_path: str, target_path: str):
         current = self.editor_panel.get_current_prompt()
@@ -503,9 +539,23 @@ class MainWindow(QMainWindow):
             elif result == AppConstants.SAVE:
                 self._on_save()
 
+        self._save_window_state()
+
         if self.hotkey_thread:
             self.hotkey_thread.stop()
 
         self.tray.hide()
         event.accept()
         QApplication.instance().quit()
+
+    def _save_window_state(self):
+        pos = self.pos()
+        size = self.size()
+        state_service.set_window_state(
+            x=pos.x(),
+            y=pos.y(),
+            width=size.width(),
+            height=size.height(),
+            opacity=self._window_opacity,
+            always_on_top=self._always_on_top,
+        )

@@ -392,7 +392,7 @@ class TreePanel(QWidget):
                 full = config.data_dir / fav_path
                 if full.exists():
                     child = QTreeWidgetItem(fav_item)
-                    child.setText(0, full.stem)
+                    child.setText(0, full.name)
                     child.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
                     child.setData(0, Qt.UserRole, PromptFile(full))
                     child.setData(0, Qt.UserRole + 1, "file")
@@ -409,7 +409,7 @@ class TreePanel(QWidget):
                 full = config.data_dir / r.get("path", "")
                 if full.exists():
                     child = QTreeWidgetItem(recent_item)
-                    child.setText(0, full.stem)
+                    child.setText(0, full.name)
                     child.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
                     child.setData(0, Qt.UserRole, PromptFile(full))
                     child.setData(0, Qt.UserRole + 1, "file")

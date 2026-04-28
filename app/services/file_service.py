@@ -1,4 +1,5 @@
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import Iterator, List, Optional
@@ -6,6 +7,17 @@ from typing import Iterator, List, Optional
 from app.config import config
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_delete(path: Path):
+    try:
+        from send2trash import send2trash
+        send2trash(str(path))
+    except ImportError:
+        if path.is_file():
+            os.remove(path)
+        elif path.is_dir():
+            shutil.rmtree(path)
 
 
 class PromptFile:
@@ -115,8 +127,7 @@ class FileService:
         try:
             target = self._resolve_path(path)
             if target.exists():
-                from send2trash import send2trash
-                send2trash(str(target))
+                _safe_delete(target)
                 return True
             return False
         except Exception as e:
@@ -139,8 +150,7 @@ class FileService:
     def delete_prompt(self, prompt_file: PromptFile) -> bool:
         try:
             if prompt_file.path.exists():
-                from send2trash import send2trash
-                send2trash(str(prompt_file.path))
+                _safe_delete(prompt_file.path)
                 return True
             return False
         except Exception as e:

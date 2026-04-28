@@ -164,8 +164,8 @@ class MainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Horizontal)
 
         self.tree_panel = TreePanel()
-        self.tree_panel.setMinimumWidth(200)
-        self.tree_panel.setMaximumWidth(350)
+        self.tree_panel.setMinimumWidth(220)
+        self.tree_panel.setMaximumWidth(400)
         self.tree_panel.prompt_selected.connect(self._on_prompt_selected)
         self.tree_panel.new_folder_requested.connect(self._on_new_folder)
         self.tree_panel.new_prompt_requested.connect(self._on_new_prompt)
@@ -190,7 +190,7 @@ class MainWindow(QMainWindow):
         self.editor_panel.delete_requested.connect(self._on_delete_prompt)
         self.splitter.addWidget(self.editor_panel)
 
-        self.splitter.setSizes([250, 650])
+        self.splitter.setSizes([280, 0, 620])
         layout.addWidget(self.splitter)
 
     def _toggle_always_on_top(self):

@@ -186,42 +186,52 @@ class TreePanel(QWidget):
         layout.setSpacing(8)
 
         header = QHBoxLayout()
+        header.setSpacing(4)
         header_label = QLabel("目录")
         header_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         header.addWidget(header_label)
         header.addStretch()
 
-        self.new_folder_btn = QPushButton("+ 文件夹")
+        self.new_folder_btn = QPushButton("+📁")
         self.new_folder_btn.setToolTip("新建文件夹")
         self.new_folder_btn.clicked.connect(self._on_new_folder)
         header.addWidget(self.new_folder_btn)
 
-        self.new_prompt_btn = QPushButton("+ 文件")
+        self.new_prompt_btn = QPushButton("+📄")
         self.new_prompt_btn.setToolTip("新建提示词文件")
         self.new_prompt_btn.clicked.connect(self._on_new_prompt)
         header.addWidget(self.new_prompt_btn)
-
-        self.batch_move_btn = QPushButton("批量移动")
-        self.batch_move_btn.clicked.connect(self._on_batch_move)
-        header.addWidget(self.batch_move_btn)
-
-        self.batch_delete_btn = QPushButton("批量删除")
-        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
-        header.addWidget(self.batch_delete_btn)
-
-        self.batch_export_btn = QPushButton("批量导出")
-        self.batch_export_btn.clicked.connect(self._on_batch_export)
-        header.addWidget(self.batch_export_btn)
-
-        self.open_folder_btn = QPushButton("打开")
-        self.open_folder_btn.clicked.connect(self._on_open_containing_folder)
-        header.addWidget(self.open_folder_btn)
 
         self.select_all_btn = QPushButton("全选")
         self.select_all_btn.clicked.connect(lambda: self.tree.selectAll())
         header.addWidget(self.select_all_btn)
 
         layout.addLayout(header)
+
+        batch = QHBoxLayout()
+        batch.setSpacing(4)
+        self.batch_move_btn = QPushButton("移动")
+        self.batch_move_btn.setToolTip("批量移动到分类")
+        self.batch_move_btn.clicked.connect(self._on_batch_move)
+        batch.addWidget(self.batch_move_btn)
+
+        self.batch_delete_btn = QPushButton("删除")
+        self.batch_delete_btn.setToolTip("批量删除")
+        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
+        batch.addWidget(self.batch_delete_btn)
+
+        self.batch_export_btn = QPushButton("导出")
+        self.batch_export_btn.setToolTip("批量导出")
+        self.batch_export_btn.clicked.connect(self._on_batch_export)
+        batch.addWidget(self.batch_export_btn)
+
+        self.open_folder_btn = QPushButton("📂")
+        self.open_folder_btn.setToolTip("打开所在文件夹")
+        self.open_folder_btn.clicked.connect(self._on_open_containing_folder)
+        batch.addWidget(self.open_folder_btn)
+
+        batch.addStretch()
+        layout.addLayout(batch)
 
         self.tree = DraggableTreeWidget(self)
         self.tree.setHeaderHidden(True)

@@ -39,21 +39,21 @@ class SearchResultPanel(QWidget):
 
         self.result_list = QListWidget()
         self.result_list.setSpacing(1)
-        self.result_list.setStyleSheet("""
-            QListWidget {
+        self.result_list.setStyleSheet(f"""
+            QListWidget {{
                 border: none;
                 background: #fafafa;
-            }
-            QListWidget::item {
+            }}
+            QListWidget::item {{
                 border-bottom: 1px solid #eee;
                 padding: 6px 8px;
-            }
-            QListWidget::item:selected {
-                background-color: #e3f2fd;
-            }
-            QListWidget::item:hover {
+            }}
+            QListWidget::item:selected {{
+                background-color: {config.search_selected_bg_color};
+            }}
+            QListWidget::item:hover {{
                 background-color: #f0f0f0;
-            }
+            }}
         """)
         self.result_list.currentItemChanged.connect(self._on_selection_changed)
         self.splitter.addWidget(self.result_list)

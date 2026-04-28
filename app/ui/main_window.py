@@ -31,7 +31,7 @@ from app.services.search_service import SearchResult, search_service
 from app.services.state_service import state_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
-from app.ui.search_result_panel import SearchResultPanel
+from app.ui.search_popup import SearchPopupWindow
 from app.ui.tray import TrayManager
 from app.ui.tree_panel import TreePanel
 
@@ -176,13 +176,6 @@ class MainWindow(QMainWindow):
         self.tree_panel.tree.item_moved.connect(self._on_item_moved)
         self.splitter.addWidget(self.tree_panel)
 
-        self.search_result_panel = SearchResultPanel()
-        self.search_result_panel.setVisible(False)
-        self.search_result_panel.result_selected.connect(self._on_search_result_selected)
-        self.search_result_panel.result_copy_requested.connect(self._on_search_result_copy)
-        self.search_result_panel.escape_pressed.connect(self._on_search_escape)
-        self.splitter.addWidget(self.search_result_panel)
-
         self.editor_panel = EditorPanel()
         self.editor_panel.save_requested.connect(self._on_save)
         self.editor_panel.copy_requested.connect(self._on_copy)
@@ -190,8 +183,13 @@ class MainWindow(QMainWindow):
         self.editor_panel.delete_requested.connect(self._on_delete_prompt)
         self.splitter.addWidget(self.editor_panel)
 
-        self.splitter.setSizes([280, 0, 620])
+        self.splitter.setSizes([280, 620])
         layout.addWidget(self.splitter)
+
+        self.search_popup = SearchPopupWindow(self)
+        self.search_popup.result_selected.connect(self._on_search_result_selected)
+        self.search_popup.result_copy_requested.connect(self._on_search_result_copy)
+        self.search_popup.escape_pressed.connect(self._on_search_escape)
 
     def _toggle_always_on_top(self):
         self._always_on_top = not self._always_on_top
@@ -357,24 +355,13 @@ class MainWindow(QMainWindow):
         if not self._last_search_keyword:
             self._hide_search_results()
             return
-        self.search_result_panel.set_results(results, self._last_search_keyword)
-        self._show_search_results()
+        self.search_popup.show_results(results, self._last_search_keyword)
 
     def _show_search_results(self):
-        self.tree_panel.setVisible(False)
-        self.editor_panel.setVisible(False)
-        self.search_result_panel.setVisible(True)
-        self.splitter.setSizes([0, 800, 0])
-        self.search_result_panel.setFocus()
-        if self.search_result_panel.result_list.count() > 0:
-            self.search_result_panel.select_first()
+        pass
 
     def _hide_search_results(self):
-        self.search_result_panel.setVisible(False)
-        self.search_result_panel.clear_results()
-        self.tree_panel.setVisible(True)
-        self.editor_panel.setVisible(True)
-        self.splitter.setSizes([280, 0, 620])
+        self.search_popup.clear()
 
     def _on_search_result_selected(self, result: SearchResult):
         full_path = config.data_dir / result.path
@@ -564,26 +551,27 @@ class MainWindow(QMainWindow):
 
     def eventFilter(self, obj, event):
         if obj == self.search_input and event.type() == event.Type.KeyPress:
-            if self.search_result_panel.isVisible():
+            if self.search_popup.isVisible():
                 if event.key() == Qt.Key_Down:
-                    self.search_result_panel.select_next()
+                    self.search_popup.panel.select_next()
                     return True
                 elif event.key() == Qt.Key_Up:
-                    self.search_result_panel.select_previous()
+                    self.search_popup.panel.select_previous()
                     return True
                 elif event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
                     if event.modifiers() == Qt.ControlModifier:
-                        result = self.search_result_panel.current_result()
+                        result = self.search_popup.panel.current_result()
                         if result:
                             self._on_search_result_copy(result)
                     else:
-                        result = self.search_result_panel.current_result()
+                        result = self.search_popup.panel.current_result()
                         if result:
                             self._on_search_result_selected(result)
                     return True
                 elif event.key() == Qt.Key_Escape:
                     if self.search_input.text():
                         self.search_input.clear()
+                        self._hide_search_results()
                         return True
             if event.key() == Qt.Key_Escape and config.esc_hide_enabled:
                 if self.search_input.text():

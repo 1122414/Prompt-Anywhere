@@ -178,6 +178,10 @@ class Config:
         return self._get_env("SEARCH_HIGHLIGHT_ENABLED", True)
 
     @property
+    def search_selected_bg_color(self) -> str:
+        return self._get_env("SEARCH_SELECTED_BG_COLOR", "#e3f2fd")
+
+    @property
     def search_case_insensitive(self) -> bool:
         return self._get_env("SEARCH_CASE_INSENSITIVE", True)
 

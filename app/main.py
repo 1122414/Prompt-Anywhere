@@ -23,6 +23,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(config.app_name)
     app.setApplicationVersion(config.app_version)
+    app.setQuitOnLastWindowClosed(False)
 
     main_window = MainWindow()
     quick_window = QuickWindow()

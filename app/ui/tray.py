@@ -1,6 +1,6 @@
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMenu, QSystemTrayIcon
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QStyle
 
 from app.config import config
 
@@ -15,8 +15,17 @@ class TrayManager(QSystemTrayIcon):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setToolTip(config.app_name)
+        icon = self._get_icon()
+        if icon:
+            self.setIcon(icon)
         self._setup_menu()
         self.activated.connect(self._on_activated)
+
+    def _get_icon(self):
+        app = QApplication.instance()
+        if app:
+            return app.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
+        return QIcon()
 
     def _setup_menu(self):
         self.menu = QMenu()

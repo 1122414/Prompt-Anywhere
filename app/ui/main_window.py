@@ -628,21 +628,23 @@ class MainWindow(QMainWindow):
                 self._on_save()
 
         self._save_window_state()
+        event.ignore()
 
-        if not state_service.get_preference("close_behavior_set", False):
-            self._show_close_dialog(event)
-        else:
+        if state_service.get_preference("close_behavior_set", False):
             behavior = state_service.get_preference("close_behavior", "minimize")
-            if behavior == "minimize":
-                event.ignore()
-                self.hide()
-            else:
+            if behavior == "quit":
                 self._force_quit()
+                return
+        else:
+            self._show_close_dialog()
 
-    def _show_close_dialog(self, event):
-        from PySide6.QtWidgets import QCheckBox, QDialog, QDialogButtonBox, QLabel, QVBoxLayout
+        self.hide()
+
+    def _show_close_dialog(self):
+        from PySide6.QtWidgets import QCheckBox, QDialog, QLabel, QPushButton, QVBoxLayout
         dialog = QDialog(self)
         dialog.setWindowTitle("关闭提示")
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowStaysOnTopHint)
         layout = QVBoxLayout(dialog)
         layout.addWidget(QLabel("点击关闭按钮，您希望："))
         btn_layout = QHBoxLayout()
@@ -653,26 +655,33 @@ class MainWindow(QMainWindow):
         layout.addLayout(btn_layout)
         no_show_cb = QCheckBox("不再显示此提示")
         layout.addWidget(no_show_cb)
-        dialog.setLayout(layout)
+
+        result = {"action": None}
 
         def on_minimize():
-            if no_show_cb.isChecked():
-                state_service.set_preference("close_behavior_set", True)
-                state_service.set_preference("close_behavior", "minimize")
+            result["action"] = "minimize"
             dialog.accept()
-            event.ignore()
-            self.hide()
 
         def on_quit():
-            if no_show_cb.isChecked():
-                state_service.set_preference("close_behavior_set", True)
-                state_service.set_preference("close_behavior", "quit")
+            result["action"] = "quit"
             dialog.accept()
-            self._force_quit()
 
         minimize_btn.clicked.connect(on_minimize)
         quit_btn.clicked.connect(on_quit)
         dialog.exec()
+
+        if result["action"] is None:
+            self.hide()
+            return
+
+        if no_show_cb.isChecked():
+            state_service.set_preference("close_behavior_set", True)
+            state_service.set_preference("close_behavior", result["action"])
+
+        if result["action"] == "quit":
+            self._force_quit()
+        else:
+            self.hide()
 
     def _force_quit(self):
         if self.hotkey_thread:

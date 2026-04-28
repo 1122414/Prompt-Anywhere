@@ -292,15 +292,19 @@ class TreePanel(QWidget):
             menu.addAction("删除", lambda: self.delete_folder_requested.emit(self._get_item_path(item)))
         else:
             if isinstance(data, PromptFile):
-                if isinstance(data, PromptFile):
-                    rel = data.path.relative_to(config.data_dir).as_posix()
-                    if state_service.is_favorite(rel):
-                        menu.addAction("取消收藏", lambda: self._toggle_favorite(rel, False))
-                    else:
-                        menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
-                    menu.addAction("复制内容", lambda: self._copy_prompt(data))
-                    menu.addSeparator()
-                    menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
+                rel = data.path.relative_to(config.data_dir).as_posix()
+                if state_service.is_favorite(rel):
+                    menu.addAction("取消收藏", lambda: self._toggle_favorite(rel, False))
+                else:
+                    menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
+                menu.addAction("复制内容", lambda: self._copy_prompt(data))
+                menu.addSeparator()
+                menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
+                selected = self.tree.selectedItems()
+                prompts = [it.data(0, Qt.UserRole) for it in selected if isinstance(it.data(0, Qt.UserRole), PromptFile)]
+                if len(prompts) > 1:
+                    menu.addAction(f"删除({len(prompts)}个文件)", lambda: self._on_batch_delete())
+                else:
                     menu.addAction("删除", lambda: self.delete_prompt_requested.emit(data))
 
         menu.exec(self.tree.mapToGlobal(position))

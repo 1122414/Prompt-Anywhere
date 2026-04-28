@@ -216,6 +216,14 @@ class TreePanel(QWidget):
         self.batch_export_btn.clicked.connect(self._on_batch_export)
         batch.addWidget(self.batch_export_btn)
 
+        self.open_folder_btn = QPushButton("打开文件夹")
+        self.open_folder_btn.clicked.connect(self._on_open_containing_folder)
+        batch.addWidget(self.open_folder_btn)
+
+        self.select_all_btn = QPushButton("全选")
+        self.select_all_btn.clicked.connect(self.tree.selectAll)
+        batch.addWidget(self.select_all_btn)
+
         layout.addLayout(batch)
 
         self.tree = DraggableTreeWidget(self)
@@ -597,6 +605,26 @@ class TreePanel(QWidget):
                 if file_service.delete_prompt(prompt):
                     search_service.remove_index_file(rel)
             self.load_tree()
+
+    def _on_open_containing_folder(self):
+        items = self.tree.selectedItems()
+        prompts = [item.data(0, Qt.UserRole) for item in items if isinstance(item.data(0, Qt.UserRole), PromptFile)]
+        if not prompts:
+            QMessageBox.information(self, "打开文件夹", "请先选择要打开的文件")
+            return
+        import subprocess
+        import sys
+        for prompt in prompts:
+            folder = str(prompt.path.parent)
+            try:
+                if sys.platform == "win32":
+                    subprocess.run(["explorer", "/select,", str(prompt.path)])
+                elif sys.platform == "darwin":
+                    subprocess.run(["open", "-R", str(prompt.path)])
+                else:
+                    subprocess.run(["xdg-open", folder])
+            except Exception:
+                pass
 
     def _on_batch_export(self):
         items = self.tree.selectedItems()

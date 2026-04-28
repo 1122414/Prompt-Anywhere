@@ -603,7 +603,9 @@ class MainWindow(QMainWindow):
 
     def _update_watched_dirs(self):
         if hasattr(self, "file_watcher"):
-            self.file_watcher.removePaths(self.file_watcher.directories())
+            dirs = self.file_watcher.directories()
+            if dirs:
+                self.file_watcher.removePaths(dirs)
             if config.data_dir.exists():
                 self.file_watcher.addPath(str(config.data_dir))
                 for subdir in config.data_dir.rglob("*"):

@@ -125,8 +125,8 @@ class EditorPanel(QWidget):
         if mode == AppConstants.MODE_PREVIEW and self._current_prompt:
             text = self.editor.toPlainText()
             html = renderer.render(text)
-            base_url = self._current_prompt.path.parent.as_uri()
-            self.preview.setHtml(html, baseUrl=base_url)
+            self.preview.setSearchPaths([str(self._current_prompt.path.parent)])
+            self.preview.setHtml(html)
         self._update_visibility()
         self.mode_changed.emit(mode)
 

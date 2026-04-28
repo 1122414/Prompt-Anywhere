@@ -3,6 +3,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -41,6 +42,7 @@ class DraggableTreeWidget(QTreeWidget):
         self.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)
         self.setDefaultDropAction(Qt.MoveAction)
         self.setDropIndicatorShown(True)
+        self.setSelectionMode(QTreeWidget.ExtendedSelection)
 
     def _get_item_path(self, item):
         if not item:
@@ -200,6 +202,21 @@ class TreePanel(QWidget):
         header.addWidget(self.new_prompt_btn)
 
         layout.addLayout(header)
+
+        batch = QHBoxLayout()
+        self.batch_move_btn = QPushButton("批量移动")
+        self.batch_move_btn.clicked.connect(self._on_batch_move)
+        batch.addWidget(self.batch_move_btn)
+
+        self.batch_delete_btn = QPushButton("批量删除")
+        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
+        batch.addWidget(self.batch_delete_btn)
+
+        self.batch_export_btn = QPushButton("批量导出")
+        self.batch_export_btn.clicked.connect(self._on_batch_export)
+        batch.addWidget(self.batch_export_btn)
+
+        layout.addLayout(batch)
 
         self.tree = DraggableTreeWidget(self)
         self.tree.setHeaderHidden(True)
@@ -536,6 +553,75 @@ class TreePanel(QWidget):
         item = self._find_item_by_path(str(prompt.rel_path).replace("\\", "/"))
         if item:
             item.setText(0, f"{new_name}{prompt.extension}")
+
+    def _on_batch_move(self):
+        items = self.tree.selectedItems()
+        prompts = [item.data(0, Qt.UserRole) for item in items if isinstance(item.data(0, Qt.UserRole), PromptFile)]
+        if not prompts:
+            QMessageBox.information(self, "批量移动", "请先选择要移动的文件")
+            return
+        from PySide6.QtWidgets import QInputDialog
+        categories = file_service.get_categories()
+        if not categories:
+            QMessageBox.information(self, "批量移动", "没有可用的分类")
+            return
+        category, ok = QInputDialog.getItem(self, "批量移动", "移动到分类:", categories, 0, False)
+        if ok and category:
+            for prompt in prompts:
+                new_path = file_service._resolve_path(category) / prompt.path.name
+                if new_path.exists() and new_path != prompt.path:
+                    continue
+                try:
+                    prompt.path.rename(new_path)
+                    search_service.rebuild_index()
+                except Exception:
+                    pass
+            self.load_tree()
+
+    def _on_batch_delete(self):
+        items = self.tree.selectedItems()
+        prompts = [item.data(0, Qt.UserRole) for item in items if isinstance(item.data(0, Qt.UserRole), PromptFile)]
+        if not prompts:
+            QMessageBox.information(self, "批量删除", "请先选择要删除的文件")
+            return
+        reply = QMessageBox.question(
+            self,
+            "确认批量删除",
+            f'确定要删除 {len(prompts)} 个提示词吗？\n该操作不可恢复。',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            for prompt in prompts:
+                rel = prompt.path.relative_to(config.data_dir).as_posix()
+                if file_service.delete_prompt(prompt):
+                    search_service.remove_index_file(rel)
+            self.load_tree()
+
+    def _on_batch_export(self):
+        items = self.tree.selectedItems()
+        prompts = [item.data(0, Qt.UserRole) for item in items if isinstance(item.data(0, Qt.UserRole), PromptFile)]
+        if not prompts:
+            QMessageBox.information(self, "批量导出", "请先选择要导出的文件")
+            return
+        dest_dir = QFileDialog.getExistingDirectory(self, "选择导出目录")
+        if not dest_dir:
+            return
+        dest = Path(dest_dir)
+        exported = 0
+        for prompt in prompts:
+            target = dest / prompt.path.name
+            counter = 1
+            while target.exists():
+                target = dest / f"{prompt.path.stem}_{counter}{prompt.path.suffix}"
+                counter += 1
+            try:
+                shutil.copy2(str(prompt.path), str(target))
+                exported += 1
+            except Exception:
+                pass
+        if exported > 0:
+            QMessageBox.information(self, "批量导出", f"成功导出 {exported} 个文件")
 
     def select_prompt(self, prompt):
         self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)

@@ -154,5 +154,46 @@ class FileService:
     def delete_category(self, name: str) -> bool:
         return self.delete_folder(name)
 
+    def import_file(self, src_path: Path, category: str, rename_policy: str = "rename") -> tuple[bool, str]:
+        try:
+            target_dir = self._resolve_path(category)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path = target_dir / src_path.name
+
+            if target_path.exists():
+                if rename_policy == "skip":
+                    return False, f"已跳过: {src_path.name}"
+                elif rename_policy == "overwrite":
+                    shutil.copy2(str(src_path), str(target_path))
+                    return True, str(target_path.relative_to(config.data_dir).as_posix())
+                else:
+                    stem = src_path.stem
+                    ext = src_path.suffix
+                    counter = 1
+                    while target_path.exists():
+                        new_name = f"{stem}_{counter}{ext}"
+                        target_path = target_dir / new_name
+                        counter += 1
+                    shutil.copy2(str(src_path), str(target_path))
+                    return True, str(target_path.relative_to(config.data_dir).as_posix())
+            else:
+                shutil.copy2(str(src_path), str(target_path))
+                return True, str(target_path.relative_to(config.data_dir).as_posix())
+        except Exception as e:
+            logger.warning(f"Failed to import file {src_path}: {e}")
+            return False, str(e)
+
+    def import_folder(self, src_dir: Path, category: str, rename_policy: str = "rename") -> tuple[int, list[str]]:
+        imported = []
+        errors = []
+        for path in src_dir.rglob("*"):
+            if path.is_file() and path.suffix.lower() in config.supported_prompt_extensions:
+                success, msg = self.import_file(path, category, rename_policy)
+                if success:
+                    imported.append(msg)
+                else:
+                    errors.append(msg)
+        return len(imported), errors
+
 
 file_service = FileService()

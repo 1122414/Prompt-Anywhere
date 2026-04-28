@@ -130,6 +130,14 @@ class MainWindow(QMainWindow):
         self.pin_btn.clicked.connect(self._toggle_always_on_top)
         toolbar.addWidget(self.pin_btn)
 
+        self.import_file_btn = QPushButton("导入文件")
+        self.import_file_btn.clicked.connect(self._on_import_file)
+        toolbar.addWidget(self.import_file_btn)
+
+        self.import_folder_btn = QPushButton("导入文件夹")
+        self.import_folder_btn.clicked.connect(self._on_import_folder)
+        toolbar.addWidget(self.import_folder_btn)
+
         toolbar.addWidget(QLabel("透明度:"))
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setMinimum(int(config.min_window_opacity * 100))
@@ -183,6 +191,58 @@ class MainWindow(QMainWindow):
         else:
             self.pin_btn.setText("置顶")
             self.pin_btn.setChecked(False)
+
+    def _on_import_file(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "导入提示词文件",
+            "",
+            f"提示词文件 ({' *.'.join(config.supported_prompt_extensions)});;所有文件 (*.*)",
+        )
+        if not files:
+            return
+        category = self._select_import_category()
+        if not category:
+            return
+        imported = 0
+        for file_path in files:
+            src = Path(file_path)
+            success, msg = file_service.import_file(src, category, "rename")
+            if success:
+                imported += 1
+                search_service.update_index_file(msg)
+                self.tree_panel.add_prompt_item(category, PromptFile(config.data_dir / msg))
+            else:
+                logger.warning(f"Import failed: {msg}")
+        if imported > 0:
+            self.statusBar().showMessage(f"成功导入 {imported} 个文件", 3000)
+
+    def _on_import_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "导入文件夹")
+        if not folder:
+            return
+        category = self._select_import_category()
+        if not category:
+            return
+        count, errors = file_service.import_folder(Path(folder), category, "rename")
+        if count > 0:
+            search_service.rebuild_index()
+            self.tree_panel.load_tree()
+            self.statusBar().showMessage(f"成功导入 {count} 个文件", 3000)
+        if errors:
+            logger.warning(f"Import errors: {errors}")
+
+    def _select_import_category(self) -> str:
+        from PySide6.QtWidgets import QInputDialog
+        categories = file_service.get_categories()
+        if not categories:
+            return ""
+        category, ok = QInputDialog.getItem(
+            self, "选择分类", "导入到分类:", categories, 0, False
+        )
+        if ok and category:
+            return category
+        return ""
 
     def _on_opacity_changed(self, value: int):
         opacity = value / 100.0

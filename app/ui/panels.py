@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from app.config import config
 from app.constants import AppConstants, Messages
 from app.services.file_service import PromptFile
+from app.utils.image_utils import save_pasted_image
 from app.utils.markdown_utils import renderer
 from app.utils.syntax_highlighter import MarkdownHighlighter
 
@@ -71,6 +72,7 @@ class EditorPanel(QWidget):
 
         self.editor = QPlainTextEdit()
         self.editor.textChanged.connect(self._on_text_changed)
+        self.editor.installEventFilter(self)
         self.highlighter = MarkdownHighlighter(self.editor.document())
         layout.addWidget(self.editor)
 
@@ -123,7 +125,8 @@ class EditorPanel(QWidget):
         if mode == AppConstants.MODE_PREVIEW and self._current_prompt:
             text = self.editor.toPlainText()
             html = renderer.render(text)
-            self.preview.setHtml(html)
+            base_url = self._current_prompt.path.parent.as_uri()
+            self.preview.setHtml(html, baseUrl=base_url)
         self._update_visibility()
         self.mode_changed.emit(mode)
 
@@ -170,6 +173,41 @@ class EditorPanel(QWidget):
     def update_prompt_path(self, prompt: PromptFile) -> None:
         self._current_prompt = prompt
         self._update_title()
+
+    def eventFilter(self, obj, event):
+        if obj == self.editor and event.type() == event.Type.KeyPress:
+            if event.key() == Qt.Key_V and event.modifiers() == Qt.ControlModifier:
+                if self._handle_paste():
+                    return True
+        return super().eventFilter(obj, event)
+
+    def _handle_paste(self) -> bool:
+        if not self._current_prompt:
+            return False
+        if self._current_prompt.extension != ".md":
+            QMessageBox.information(
+                self,
+                "无法插入图片",
+                "当前文件是 txt 格式，无法插入图片。请转换或新建 md 文件。",
+            )
+            return False
+
+        from PySide6.QtWidgets import QApplication
+        clipboard = QApplication.clipboard()
+        mime = clipboard.mimeData()
+
+        if mime.hasText() and not mime.hasImage() and not mime.urls():
+            return False
+
+        image_path = save_pasted_image(mime, self._current_prompt.path)
+        if image_path:
+            cursor = self.editor.textCursor()
+            markdown_link = f"![pasted image]({image_path})"
+            cursor.insertText(markdown_link)
+            self._on_text_changed()
+            return True
+
+        return False
 
     def check_unsaved(self) -> str:
         if self._is_modified:

@@ -2,7 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, QFileSystemWatcher, Signal
+from PySide6.QtCore import Qt, QThread, QTimer, QFileSystemWatcher, Signal
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -22,9 +22,10 @@ from app.constants import AppConstants, Messages
 from app.services.clipboard_service import clipboard_service
 from app.services.export_service import export_service
 from app.services.file_service import PromptFile, file_service
-from app.services.search_service import search_service
+from app.services.search_service import SearchResult, search_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
+from app.ui.search_result_panel import SearchResultPanel
 from app.ui.tray import TrayManager
 from app.ui.tree_panel import TreePanel
 
@@ -69,6 +70,12 @@ class MainWindow(QMainWindow):
         self.move(config.window_x, config.window_y)
 
         self._always_on_top = config.always_on_top
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.timeout.connect(self._do_search)
+        self._search_worker = None
+        self._last_search_keyword = ""
+
         self._setup_window_flags()
         self._setup_ui()
         self._setup_tray()
@@ -76,6 +83,8 @@ class MainWindow(QMainWindow):
         self._setup_shortcuts()
         self._setup_file_watcher()
         self._load_data()
+
+        search_service.rebuild_index()
 
     def _setup_window_flags(self):
         if self._always_on_top:
@@ -94,6 +103,7 @@ class MainWindow(QMainWindow):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(Messages.SEARCH_PLACEHOLDER)
         self.search_input.textChanged.connect(self._on_search)
+        self.search_input.installEventFilter(self)
         toolbar.addWidget(self.search_input)
 
         self.pin_btn = QPushButton("📌 置顶" if self._always_on_top else "置顶")
@@ -118,6 +128,13 @@ class MainWindow(QMainWindow):
         self.tree_panel.delete_prompt_requested.connect(self._on_delete_prompt_from_tree)
         self.tree_panel.tree.item_moved.connect(self._on_item_moved)
         self.splitter.addWidget(self.tree_panel)
+
+        self.search_result_panel = SearchResultPanel()
+        self.search_result_panel.setVisible(False)
+        self.search_result_panel.result_selected.connect(self._on_search_result_selected)
+        self.search_result_panel.result_copy_requested.connect(self._on_search_result_copy)
+        self.search_result_panel.escape_pressed.connect(self._on_search_escape)
+        self.splitter.addWidget(self.search_result_panel)
 
         self.editor_panel = EditorPanel()
         self.editor_panel.save_requested.connect(self._on_save)
@@ -204,18 +221,68 @@ class MainWindow(QMainWindow):
                     self.editor_panel.update_prompt_path(PromptFile(new_path))
 
     def _on_search(self, text: str):
-        if text.strip():
-            all_prompts = list(file_service.iter_all_prompts())
-            results = search_service.search(text, all_prompts, config.search_case_insensitive)
-            self._show_search_results(results)
-        else:
-            self.tree_panel.load_tree()
+        self._last_search_keyword = text.strip()
+        self._search_timer.stop()
+        if not self._last_search_keyword:
+            self._hide_search_results()
+            return
+        self._search_timer.start(config.search_debounce_ms)
 
-    def _show_search_results(self, prompts: list):
-        self.tree_panel.load_tree()
-        for prompt in prompts:
-            self.tree_panel.select_prompt(prompt)
-            break
+    def _do_search(self):
+        keyword = self._last_search_keyword
+        if not keyword:
+            self._hide_search_results()
+            return
+        search_id, worker = search_service.search_async(keyword, config.search_case_insensitive)
+        worker.results_ready.connect(self._on_search_results_ready)
+        worker.start()
+        self._search_worker = worker
+
+    def _on_search_results_ready(self, search_id: int, results: list[SearchResult]):
+        if search_id != search_service.get_current_search_id():
+            return
+        if not self._last_search_keyword:
+            self._hide_search_results()
+            return
+        self.search_result_panel.set_results(results, self._last_search_keyword)
+        self._show_search_results()
+
+    def _show_search_results(self):
+        self.tree_panel.setVisible(False)
+        self.search_result_panel.setVisible(True)
+        self.search_result_panel.setFocus()
+        if self.search_result_panel.list_widget.count() > 0:
+            self.search_result_panel.select_first()
+
+    def _hide_search_results(self):
+        self.search_result_panel.setVisible(False)
+        self.search_result_panel.clear_results()
+        self.tree_panel.setVisible(True)
+
+    def _on_search_result_selected(self, result: SearchResult):
+        full_path = config.data_dir / result.path
+        if full_path.exists():
+            prompt = PromptFile(full_path)
+            self._on_prompt_selected(prompt)
+            self.search_input.clear()
+            self._hide_search_results()
+
+    def _on_search_result_copy(self, result: SearchResult):
+        full_path = config.data_dir / result.path
+        if full_path.exists():
+            prompt = PromptFile(full_path)
+            content = prompt.read_content()
+            if clipboard_service.copy_text(content):
+                self.statusBar().showMessage(Messages.COPIED, 2000)
+                self._on_copy_done()
+
+    def _on_search_escape(self):
+        self.search_input.clear()
+        self._hide_search_results()
+
+    def _on_copy_done(self):
+        if config.copy_auto_hide:
+            QTimer.singleShot(config.copy_hide_delay_ms, self.hide)
 
     def _on_new_folder(self, parent_path: str):
         dialog = FolderDialog(self, folder_path=parent_path)
@@ -226,6 +293,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "错误", f'文件夹"{name}"已存在')
                 return
             if file_service.create_folder(parent_path, name):
+                search_service.rebuild_index()
                 self.tree_panel.add_folder_item(parent_path, name)
 
     def _on_new_prompt(self, parent_path: str):
@@ -236,6 +304,8 @@ class MainWindow(QMainWindow):
             content = dialog.get_content()
             prompt = file_service.create_prompt(parent_path, name, extension, content)
             if prompt:
+                rel = prompt.path.relative_to(config.data_dir).as_posix()
+                search_service.update_index_file(rel)
                 self.tree_panel.add_prompt_item(parent_path, prompt)
             else:
                 QMessageBox.warning(self, "创建失败", f'已存在同名文件"{name}{extension}"')
@@ -247,6 +317,8 @@ class MainWindow(QMainWindow):
             if prompt.write_content(content):
                 self.editor_panel.mark_saved()
                 self.statusBar().showMessage(Messages.SAVED, 2000)
+                rel = prompt.path.relative_to(config.data_dir).as_posix()
+                search_service.update_index_file(rel)
 
     def _on_copy(self):
         prompt = self.editor_panel.get_current_prompt()
@@ -254,6 +326,7 @@ class MainWindow(QMainWindow):
             content = prompt.read_content()
             if clipboard_service.copy_text(content):
                 self.statusBar().showMessage(Messages.COPIED, 2000)
+                self._on_copy_done()
 
     def _on_export(self):
         prompt = self.editor_panel.get_current_prompt()
@@ -279,7 +352,9 @@ class MainWindow(QMainWindow):
                 QMessageBox.No,
             )
             if reply == QMessageBox.Yes:
+                rel = prompt.path.relative_to(config.data_dir).as_posix()
                 if file_service.delete_prompt(prompt):
+                    search_service.remove_index_file(rel)
                     self.editor_panel.load_prompt(None)
                     self.tree_panel.remove_prompt_item(prompt)
 
@@ -326,6 +401,7 @@ class MainWindow(QMainWindow):
                 if current_path == folder_path or current_path.startswith(folder_path + "/"):
                     self.editor_panel.load_prompt(None)
             if file_service.delete_folder(folder_path):
+                search_service.rebuild_index()
                 self.tree_panel.remove_folder_item(folder_path)
 
     def _on_rename_prompt(self, prompt: PromptFile):
@@ -334,9 +410,11 @@ class MainWindow(QMainWindow):
             self, "重命名提示词", "新名称:", text=prompt.name
         )
         if ok and new_name and new_name != prompt.name:
+            old_rel = prompt.path.relative_to(config.data_dir).as_posix()
             if not file_service.rename_prompt(prompt, new_name):
                 QMessageBox.warning(self, "错误", f'文件"{new_name}{prompt.extension}"已存在')
                 return
+            search_service.rebuild_index()
             self.tree_panel.rename_prompt_item(prompt, new_name)
 
     def _on_delete_prompt_from_tree(self, prompt: PromptFile):
@@ -351,7 +429,9 @@ class MainWindow(QMainWindow):
             current = self.editor_panel.get_current_prompt()
             if current and current.path == prompt.path:
                 self.editor_panel.load_prompt(None)
+            rel = prompt.path.relative_to(config.data_dir).as_posix()
             if file_service.delete_prompt(prompt):
+                search_service.remove_index_file(rel)
                 self.tree_panel.remove_prompt_item(prompt)
 
     def _setup_file_watcher(self):
@@ -359,6 +439,37 @@ class MainWindow(QMainWindow):
             self.file_watcher = QFileSystemWatcher(self)
             self.file_watcher.directoryChanged.connect(self._on_dir_changed)
             self._update_watched_dirs()
+
+    def eventFilter(self, obj, event):
+        if obj == self.search_input and event.type() == event.Type.KeyPress:
+            if self.search_result_panel.isVisible():
+                if event.key() == Qt.Key_Down:
+                    self.search_result_panel.select_next()
+                    return True
+                elif event.key() == Qt.Key_Up:
+                    self.search_result_panel.select_previous()
+                    return True
+                elif event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+                    if event.modifiers() == Qt.ControlModifier:
+                        result = self.search_result_panel.current_result()
+                        if result:
+                            self._on_search_result_copy(result)
+                    else:
+                        result = self.search_result_panel.current_result()
+                        if result:
+                            self._on_search_result_selected(result)
+                    return True
+                elif event.key() == Qt.Key_Escape:
+                    if self.search_input.text():
+                        self.search_input.clear()
+                        return True
+            if event.key() == Qt.Key_Escape and config.esc_hide_enabled:
+                if self.search_input.text():
+                    self.search_input.clear()
+                else:
+                    self.hide()
+                return True
+        return super().eventFilter(obj, event)
 
     def _update_watched_dirs(self):
         if hasattr(self, "file_watcher"):
@@ -370,6 +481,7 @@ class MainWindow(QMainWindow):
                         self.file_watcher.addPath(str(subdir))
 
     def _on_dir_changed(self, path: str):
+        search_service.rebuild_index()
         self.tree_panel.load_tree()
         self._update_watched_dirs()
 

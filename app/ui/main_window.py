@@ -2,7 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, QFileSystemWatcher
+from PySide6.QtCore import Qt, QThread, QFileSystemWatcher, Signal
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -30,10 +30,11 @@ from app.ui.tree_panel import TreePanel
 
 
 class HotkeyThread(QThread):
-    def __init__(self, hotkey_str, callback):
+    hotkey_pressed = Signal()
+
+    def __init__(self, hotkey_str):
         super().__init__()
         self.hotkey_str = hotkey_str
-        self.callback = callback
         self._running = True
 
     def run(self):
@@ -42,7 +43,7 @@ class HotkeyThread(QThread):
 
             def on_hotkey():
                 if self._running:
-                    self.callback()
+                    self.hotkey_pressed.emit()
 
             hotkey = keyboard.GlobalHotKeys({
                 self.hotkey_str: on_hotkey
@@ -150,9 +151,12 @@ class MainWindow(QMainWindow):
     def _setup_hotkey(self):
         try:
             hotkey_str = config.hotkey.lower()
-            self.hotkey_thread = HotkeyThread(hotkey_str, self.toggle_visibility)
+            self.hotkey_thread = HotkeyThread(hotkey_str)
+            self.hotkey_thread.hotkey_pressed.connect(self.toggle_visibility)
             self.hotkey_thread.start()
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to setup hotkey: {e}")
             self.hotkey_thread = None
 
     def _setup_shortcuts(self):

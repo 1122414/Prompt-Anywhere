@@ -466,8 +466,14 @@ class MainWindow(QMainWindow):
             if event.key() == Qt.Key_Escape and config.esc_hide_enabled:
                 if self.search_input.text():
                     self.search_input.clear()
-                else:
-                    self.hide()
+                    return True
+                if self.editor_panel.is_modified():
+                    result = self.editor_panel.check_unsaved()
+                    if result == AppConstants.CANCEL:
+                        return True
+                    elif result == AppConstants.SAVE:
+                        self._on_save()
+                self.hide()
                 return True
         return super().eventFilter(obj, event)
 

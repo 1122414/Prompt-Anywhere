@@ -203,6 +203,14 @@ class TreePanel(QWidget):
 
         layout.addLayout(header)
 
+        self.tree = DraggableTreeWidget(self)
+        self.tree.setHeaderHidden(True)
+        self.tree.setFrameShape(QTreeWidget.NoFrame)
+        self.tree.itemClicked.connect(self._on_item_clicked)
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._show_context_menu)
+        layout.addWidget(self.tree)
+
         batch = QHBoxLayout()
         self.batch_move_btn = QPushButton("批量移动")
         self.batch_move_btn.clicked.connect(self._on_batch_move)
@@ -225,14 +233,6 @@ class TreePanel(QWidget):
         batch.addWidget(self.select_all_btn)
 
         layout.addLayout(batch)
-
-        self.tree = DraggableTreeWidget(self)
-        self.tree.setHeaderHidden(True)
-        self.tree.setFrameShape(QTreeWidget.NoFrame)
-        self.tree.itemClicked.connect(self._on_item_clicked)
-        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tree.customContextMenuRequested.connect(self._show_context_menu)
-        layout.addWidget(self.tree)
 
     def _folder_icon(self, folder_path):
         icon_key = config.folder_icon(folder_path)

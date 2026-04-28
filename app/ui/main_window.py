@@ -191,7 +191,8 @@ class MainWindow(QMainWindow):
 
     def _setup_tray(self):
         self.tray = TrayManager(self)
-        self.tray.toggle_window.connect(self.toggle_visibility)
+        self.tray.open_main_window.connect(self.show_main)
+        self.tray.toggle_quick_window.connect(self.toggle_quick)
         self.tray.new_prompt.connect(lambda: self._on_new_prompt(""))
         self.tray.open_data_dir.connect(self._open_data_dir)
         self.tray.quit_app.connect(self._quit_app)
@@ -201,7 +202,7 @@ class MainWindow(QMainWindow):
         try:
             hotkey_str = config.hotkey.lower()
             self.hotkey_thread = HotkeyThread(hotkey_str)
-            self.hotkey_thread.hotkey_pressed.connect(self.toggle_visibility)
+            self.hotkey_thread.hotkey_pressed.connect(self.toggle_quick)
             self.hotkey_thread.start()
         except Exception as e:
             import logging
@@ -219,13 +220,17 @@ class MainWindow(QMainWindow):
         self.tree_panel.load_tree()
 
     def toggle_visibility(self):
-        if self.isVisible() and not self.isMinimized():
-            self.hide()
-        else:
-            self.showNormal()
-            self.activateWindow()
-            self.raise_()
-            self.search_input.setFocus()
+        self.toggle_quick()
+
+    def show_main(self):
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+        self.search_input.setFocus()
+
+    def toggle_quick(self):
+        if hasattr(self, "quick_window") and self.quick_window:
+            self.quick_window.toggle_visibility()
 
     def _on_prompt_selected(self, prompt: PromptFile):
         if self.editor_panel.is_modified():

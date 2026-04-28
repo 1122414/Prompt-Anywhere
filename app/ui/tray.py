@@ -6,7 +6,8 @@ from app.constants import AppConstants
 
 
 class TrayManager(QSystemTrayIcon):
-    toggle_window = Signal()
+    open_main_window = Signal()
+    toggle_quick_window = Signal()
     new_prompt = Signal()
     open_data_dir = Signal()
     quit_app = Signal()
@@ -20,9 +21,13 @@ class TrayManager(QSystemTrayIcon):
     def _setup_menu(self):
         self.menu = QMenu()
 
-        self.toggle_action = QAction("显示 / 隐藏", self.menu)
-        self.toggle_action.triggered.connect(self.toggle_window.emit)
-        self.menu.addAction(self.toggle_action)
+        self.open_main_action = QAction("打开主界面", self.menu)
+        self.open_main_action.triggered.connect(self.open_main_window.emit)
+        self.menu.addAction(self.open_main_action)
+
+        self.quick_mode_action = QAction("快速模式", self.menu)
+        self.quick_mode_action.triggered.connect(self.toggle_quick_window.emit)
+        self.menu.addAction(self.quick_mode_action)
 
         self.menu.addSeparator()
 
@@ -44,4 +49,4 @@ class TrayManager(QSystemTrayIcon):
 
     def _on_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
-            self.toggle_window.emit()
+            self.open_main_window.emit()

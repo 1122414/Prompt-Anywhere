@@ -201,6 +201,26 @@ class TreePanel(QWidget):
         self.new_prompt_btn.clicked.connect(self._on_new_prompt)
         header.addWidget(self.new_prompt_btn)
 
+        self.batch_move_btn = QPushButton("批量移动")
+        self.batch_move_btn.clicked.connect(self._on_batch_move)
+        header.addWidget(self.batch_move_btn)
+
+        self.batch_delete_btn = QPushButton("批量删除")
+        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
+        header.addWidget(self.batch_delete_btn)
+
+        self.batch_export_btn = QPushButton("批量导出")
+        self.batch_export_btn.clicked.connect(self._on_batch_export)
+        header.addWidget(self.batch_export_btn)
+
+        self.open_folder_btn = QPushButton("打开")
+        self.open_folder_btn.clicked.connect(self._on_open_containing_folder)
+        header.addWidget(self.open_folder_btn)
+
+        self.select_all_btn = QPushButton("全选")
+        self.select_all_btn.clicked.connect(lambda: self.tree.selectAll())
+        header.addWidget(self.select_all_btn)
+
         layout.addLayout(header)
 
         self.tree = DraggableTreeWidget(self)
@@ -210,29 +230,6 @@ class TreePanel(QWidget):
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.tree)
-
-        batch = QHBoxLayout()
-        self.batch_move_btn = QPushButton("批量移动")
-        self.batch_move_btn.clicked.connect(self._on_batch_move)
-        batch.addWidget(self.batch_move_btn)
-
-        self.batch_delete_btn = QPushButton("批量删除")
-        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
-        batch.addWidget(self.batch_delete_btn)
-
-        self.batch_export_btn = QPushButton("批量导出")
-        self.batch_export_btn.clicked.connect(self._on_batch_export)
-        batch.addWidget(self.batch_export_btn)
-
-        self.open_folder_btn = QPushButton("打开文件夹")
-        self.open_folder_btn.clicked.connect(self._on_open_containing_folder)
-        batch.addWidget(self.open_folder_btn)
-
-        self.select_all_btn = QPushButton("全选")
-        self.select_all_btn.clicked.connect(self.tree.selectAll)
-        batch.addWidget(self.select_all_btn)
-
-        layout.addLayout(batch)
 
     def _folder_icon(self, folder_path):
         icon_key = config.folder_icon(folder_path)
@@ -397,7 +394,7 @@ class TreePanel(QWidget):
             recent_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
             recent_item.setData(0, Qt.UserRole + 1, "special")
             recent_item.setData(0, Qt.UserRole + 2, "recent")
-            recent_item.setExpanded(True)
+            recent_item.setExpanded(False)
             for r in recent[:20]:
                 full = config.data_dir / r.get("path", "")
                 if full.exists():
@@ -507,7 +504,7 @@ class TreePanel(QWidget):
         folder_item.setIcon(0, self._folder_icon(folder_path))
         folder_item.setData(0, Qt.UserRole + 1, "folder")
         self.tree.setCurrentItem(folder_item)
-        parent_item.setExpanded(True)
+        parent_item.setExpanded(True) if isinstance(parent_item, QTreeWidgetItem) else None
 
     def add_prompt_item(self, parent_path, prompt):
         parent_item = self._find_item_by_path(parent_path) if parent_path else None
@@ -520,7 +517,7 @@ class TreePanel(QWidget):
         file_item.setData(0, Qt.UserRole, prompt)
         file_item.setData(0, Qt.UserRole + 1, "file")
         self.tree.setCurrentItem(file_item)
-        parent_item.setExpanded(True)
+        parent_item.setExpanded(True) if isinstance(parent_item, QTreeWidgetItem) else None
 
     def remove_folder_item(self, folder_path):
         item = self._find_item_by_path(folder_path)

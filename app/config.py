@@ -215,6 +215,11 @@ class Config:
         return self._get_env("LOG_LEVEL", "INFO")
 
     @property
+    def max_recent_files(self) -> int:
+        val = int(self._get_env("MAX_RECENT_FILES", "10"))
+        return max(1, min(val, 20))
+
+    @property
     def enable_file_watcher(self) -> bool:
         return self._get_env("ENABLE_FILE_WATCHER", True)
 

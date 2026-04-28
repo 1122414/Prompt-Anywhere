@@ -119,7 +119,7 @@ class StateService:
             "last_used_at": datetime.now().isoformat(),
             "use_count": use_count,
         })
-        recent = recent[:50]
+        recent = recent[:config.max_recent_files]
         self.set_recent_files(recent)
 
 

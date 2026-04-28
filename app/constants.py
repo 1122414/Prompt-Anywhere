@@ -1,6 +1,5 @@
 class AppConstants:
     APP_NAME = "Prompt Anywhere"
-    SUPPORTED_EXTENSIONS = {".md", ".txt"}
     MODE_EDIT = "edit"
     MODE_PREVIEW = "preview"
     SAVE = "save"

@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Iterator, List, Optional
 
 from app.config import config
-from app.constants import AppConstants
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ class FileService:
         if not config.data_dir.exists():
             return
         for path in sorted(config.data_dir.rglob("*")):
-            if path.is_file() and path.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS:
+            if path.is_file() and path.suffix.lower() in config.supported_prompt_extensions:
                 yield PromptFile(path)
 
     def get_prompts(self, folder_path: str = "") -> List[PromptFile]:
@@ -62,7 +61,7 @@ class FileService:
         prompts = []
         if target_dir.exists():
             for item in sorted(target_dir.iterdir()):
-                if item.is_file() and item.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS:
+                if item.is_file() and item.suffix.lower() in config.supported_prompt_extensions:
                     prompts.append(PromptFile(item))
         return sorted(prompts, key=lambda p: p.name)
 

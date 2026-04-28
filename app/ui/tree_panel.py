@@ -340,7 +340,7 @@ class TreePanel(QWidget):
         all_item.setFlags(all_item.flags() & ~Qt.ItemIsSelectable)
 
         dirs = sorted([d for d in config.data_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
-        files = sorted([f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
+        files = sorted([f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
 
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 
@@ -388,7 +388,7 @@ class TreePanel(QWidget):
 
     def _load_directory(self, dir_path, parent_item):
         dirs = sorted([d for d in dir_path.iterdir() if d.is_dir() and not d.name.startswith(".")])
-        files = sorted([f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in AppConstants.SUPPORTED_EXTENSIONS])
+        files = sorted([f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
 
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 

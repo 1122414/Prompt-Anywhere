@@ -1,0 +1,20 @@
+services:
+  prompt-anywhere:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: prompt-anywhere
+    ports:
+      - "6080:6080"
+    volumes:
+      - ../data:/app/data
+      - ../exports:/app/exports
+      - ../backups:/app/backups
+      - ../logs:/app/logs
+      - ../app_config.json:/app/app_config.json
+      - ../app_state.json:/app/app_state.json
+    environment:
+      - APP_ENV=docker
+      - DISPLAY=:99
+      - QT_QPA_PLATFORM=xcb
+    restart: unless-stopped

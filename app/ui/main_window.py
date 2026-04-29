@@ -30,6 +30,8 @@ from app.services.export_service import export_service
 from app.services.file_service import PromptFile, file_service
 from app.services.search_service import SearchResult, search_service
 from app.services.state_service import state_service
+from app.services.startup_service import startup_service
+from app.services.logging_service import logging_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
 from app.ui.search_popup import SearchPopupWindow
@@ -336,7 +338,7 @@ class MainWindow(QMainWindow):
         self.setWindowOpacity(opacity)
 
     def _on_settings(self):
-        from app.ui.dialogs import SettingsDialog
+        from app.ui.settings_dialog import SettingsDialog
         dialog = SettingsDialog(self)
         if dialog.exec() == SettingsDialog.Accepted:
             self.statusBar().showMessage("设置已保存", 2000)

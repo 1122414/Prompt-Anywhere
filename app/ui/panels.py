@@ -73,6 +73,8 @@ class EditorPanel(QWidget):
         self.editor = QPlainTextEdit()
         self.editor.textChanged.connect(self._on_text_changed)
         self.editor.installEventFilter(self)
+        self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.editor.customContextMenuRequested.connect(self._show_editor_context_menu)
         self.highlighter = MarkdownHighlighter(self.editor.document())
         layout.addWidget(self.editor)
 
@@ -208,6 +210,65 @@ class EditorPanel(QWidget):
             return True
 
         return False
+
+    def _show_editor_context_menu(self, position):
+        menu = self.editor.createStandardContextMenu()
+        menu.addSeparator()
+
+        cursor = self.editor.textCursor()
+        has_selection = cursor.hasSelection()
+
+        convert_action = menu.addAction("转为变量")
+        convert_action.setEnabled(has_selection)
+        convert_action.triggered.connect(self._on_convert_to_variable)
+
+        view_action = menu.addAction("查看变量")
+        view_action.triggered.connect(self._on_view_variables)
+
+        use_template_action = menu.addAction("使用模板")
+        use_template_action.triggered.connect(self._on_use_template)
+
+        menu.exec(self.editor.mapToGlobal(position))
+
+    def _on_convert_to_variable(self):
+        cursor = self.editor.textCursor()
+        if not cursor.hasSelection():
+            return
+
+        selected_text = cursor.selectedText()
+        from app.ui.dialogs import VariableNameDialog
+        dialog = VariableNameDialog(self, selected_text=selected_text)
+        if dialog.exec() == VariableNameDialog.Accepted:
+            variable_name = dialog.get_variable_name()
+            if variable_name:
+                from app.services.template_service import template_service
+                token = template_service.make_variable_token(variable_name)
+                cursor.insertText(token)
+                self._on_text_changed()
+
+    def _on_view_variables(self):
+        content = self.editor.toPlainText()
+        from app.services.template_service import template_service
+        variables = template_service.extract_variables(content)
+
+        if not variables:
+            QMessageBox.information(self, "模板变量", "当前提示词中没有模板变量。")
+        else:
+            var_list = "\n".join(variables)
+            QMessageBox.information(self, "模板变量", f"当前提示词中的变量：\n\n{var_list}")
+
+    def _on_use_template(self):
+        content = self.editor.toPlainText()
+        from app.services.template_service import template_service
+        variables = template_service.extract_variables(content)
+
+        if not variables:
+            QMessageBox.information(self, "使用模板", "当前提示词没有模板变量，将直接复制原文。")
+            from app.services.clipboard_service import clipboard_service
+            clipboard_service.copy_text(content)
+            return
+
+        QMessageBox.information(self, "使用模板", "模板变量填写功能将在下一步实现。")
 
     def check_unsaved(self) -> str:
         if self._is_modified:

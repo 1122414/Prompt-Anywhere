@@ -200,3 +200,99 @@ class SettingsDialog(QDialog):
         self.copy_auto_hide_cb.setChecked(True)
         self.copy_hide_delay_spin.setValue(200)
         self.esc_hide_cb.setChecked(True)
+
+
+class VariableNameDialog(QDialog):
+    def __init__(self, parent=None, selected_text: str = ""):
+        super().__init__(parent)
+        self._selected_text = selected_text
+        self.setWindowTitle("输入变量名")
+        self.setMinimumWidth(400)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+
+        if self._selected_text:
+            text_label = QLabel(f"选中的文本：{self._selected_text}")
+            text_label.setStyleSheet("color: #666; padding: 4px;")
+            layout.addWidget(text_label)
+
+        form = QFormLayout()
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("输入变量名（仅限字母、数字、下划线）")
+        form.addRow("变量名:", self.name_input)
+        layout.addLayout(form)
+
+        quick_label = QLabel("常用变量名：")
+        layout.addWidget(quick_label)
+
+        quick_layout = QHBoxLayout()
+        quick_layout.setSpacing(4)
+
+        common_names = [
+            "project_name", "company", "target_role", "task",
+            "requirements", "constraints", "output_format"
+        ]
+
+        for name in common_names:
+            btn = QPushButton(name)
+            btn.setStyleSheet("padding: 2px 6px; font-size: 11px;")
+            btn.clicked.connect(lambda checked, n=name: self.name_input.setText(n))
+            quick_layout.addWidget(btn)
+
+        quick_layout.addStretch()
+        layout.addLayout(quick_layout)
+
+        quick_layout2 = QHBoxLayout()
+        quick_layout2.setSpacing(4)
+
+        common_names2 = [
+            "tone", "length", "code", "text",
+            "background", "acceptance_criteria", "forbidden"
+        ]
+
+        for name in common_names2:
+            btn = QPushButton(name)
+            btn.setStyleSheet("padding: 2px 6px; font-size: 11px;")
+            btn.clicked.connect(lambda checked, n=name: self.name_input.setText(n))
+            quick_layout2.addWidget(btn)
+
+        quick_layout2.addStretch()
+        layout.addLayout(quick_layout2)
+
+        self.validation_label = QLabel("")
+        self.validation_label.setStyleSheet("color: red;")
+        layout.addWidget(self.validation_label)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self.name_input.textChanged.connect(self._validate_input)
+
+    def _validate_input(self, text):
+        from app.services.template_service import template_service
+        is_valid, error_msg = template_service.validate_variable_name(text)
+        if text and not is_valid:
+            self.validation_label.setText(error_msg)
+        else:
+            self.validation_label.setText("")
+
+    def _on_accept(self):
+        name = self.name_input.text().strip()
+        if not name:
+            QMessageBox.warning(self, "错误", "变量名不能为空")
+            return
+
+        from app.services.template_service import template_service
+        is_valid, error_msg = template_service.validate_variable_name(name)
+        if not is_valid:
+            QMessageBox.warning(self, "错误", error_msg)
+            return
+
+        self.accept()
+
+    def get_variable_name(self) -> str:
+        return self.name_input.text().strip()

@@ -1,5 +1,6 @@
 import logging
 import sys
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
@@ -10,16 +11,37 @@ from app.ui.tray import TrayManager
 
 
 def _setup_logging():
-    level = getattr(logging, config.log_level.upper(), logging.INFO)
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    from app.services.logging_service import logging_service
+    log_dir = Path("logs")
+    logging_service.initialize(log_dir, config.log_level)
+
+
+def _initialize_app():
+    from app.services.startup_service import startup_service
+    startup_service.initialize()
+    
+    from app.services.backup_service import backup_service
+    backup_service.initialize(Path("backups"))
+    
+    if backup_service.should_auto_backup():
+        from app.services.config_service import config_service
+        interval = config_service.get("backup.auto_backup_interval_hours", 24)
+        if backup_service.should_auto_backup(interval):
+            try:
+                backup_service.create_backup(
+                    config.data_dir,
+                    Path("app_config.json"),
+                    config.user_state_path
+                )
+                logging.getLogger(__name__).info("Auto backup completed")
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"Auto backup failed: {e}")
 
 
 def main():
     _setup_logging()
+    _initialize_app()
+    
     app = QApplication(sys.argv)
     app.setApplicationName(config.app_name)
     app.setApplicationVersion(config.app_version)
@@ -34,7 +56,6 @@ def main():
         main_window.raise_()
         if path:
             from app.services.file_service import PromptFile
-            from pathlib import Path
             full_path = config.data_dir / path
             if full_path.exists():
                 main_window._on_prompt_selected(PromptFile(full_path))

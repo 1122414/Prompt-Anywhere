@@ -47,7 +47,9 @@ class StartupService:
         return self._is_first_launch
 
     def _ensure_directories(self) -> None:
-        for d in [config.data_dir, config.export_dir]:
+        backup_dir = Path("./backups").resolve()
+        log_dir = Path("./logs").resolve()
+        for d in [config.data_dir, config.export_dir, backup_dir, log_dir]:
             d.mkdir(parents=True, exist_ok=True)
 
     def _ensure_config_file(self) -> None:
@@ -85,9 +87,14 @@ class StartupService:
         issues = []
         results = {}
 
+        backup_dir = Path("./backups").resolve()
+        log_dir = Path("./logs").resolve()
+
         checks = [
             ("data_dir", config.data_dir),
             ("export_dir", config.export_dir),
+            ("backup_dir", backup_dir),
+            ("log_dir", log_dir),
         ]
 
         for name, path in checks:

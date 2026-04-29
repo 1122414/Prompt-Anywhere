@@ -504,6 +504,10 @@ class MainWindow(QMainWindow):
         prompt = self.editor_panel.get_current_prompt()
         if prompt:
             content = self.editor_panel.get_content()
+            
+            from app.services.history_service import history_service
+            history_service.create_version(prompt.path, content)
+            
             if prompt.write_content(content):
                 self.editor_panel.mark_saved()
                 self.statusBar().showMessage(Messages.SAVED, 2000)

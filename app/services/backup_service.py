@@ -44,6 +44,11 @@ class BackupService:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_name = f"backup_{timestamp}.zip"
         backup_path = self._backup_dir / backup_name
+        counter = 1
+        while backup_path.exists():
+            backup_name = f"backup_{timestamp}_{counter}.zip"
+            backup_path = self._backup_dir / backup_name
+            counter += 1
 
         try:
             with ZipFile(backup_path, "w", ZIP_DEFLATED) as zf:

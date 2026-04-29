@@ -1,5 +1,4 @@
 import logging
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -84,10 +83,15 @@ class HistoryService:
 
         try:
             if file_path.exists():
-                self.create_version(
-                    file_path,
+                history_dir = self.get_history_dir(file_path)
+                history_dir.mkdir(parents=True, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = history_dir / f"{timestamp}{file_path.suffix}"
+                backup_path.write_text(
                     file_path.read_text(encoding=config.file_encoding),
+                    encoding=config.file_encoding,
                 )
+                self.cleanup_old_versions(file_path)
 
             content = version_path.read_text(encoding=config.file_encoding)
             file_path.write_text(content, encoding=config.file_encoding)
@@ -99,7 +103,6 @@ class HistoryService:
             return False
 
     def cleanup_old_versions(self, file_path: Path, max_count: int = 20):
-        """Remove old versions beyond max_count, keeping the newest ones."""
         history_dir = self.get_history_dir(file_path)
         if not history_dir.exists():
             return

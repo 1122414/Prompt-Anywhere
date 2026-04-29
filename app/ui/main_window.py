@@ -150,6 +150,16 @@ class MainWindow(QMainWindow):
         self.import_folder_btn.clicked.connect(self._on_import_folder)
         toolbar.addWidget(self.import_folder_btn)
 
+        if config.enable_builtin_templates:
+            self.import_builtin_btn = QPushButton("导入内置模板")
+            self.import_builtin_btn.clicked.connect(self._on_import_builtin)
+            toolbar.addWidget(self.import_builtin_btn)
+
+        if config.show_composer_button:
+            self.composer_btn = QPushButton("组合器")
+            self.composer_btn.clicked.connect(self._on_open_composer)
+            toolbar.addWidget(self.composer_btn)
+
         toolbar.addWidget(QLabel("透明度:"))
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setMinimum(int(config.min_window_opacity * 100))
@@ -247,6 +257,20 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"成功导入 {count} 个文件", 3000)
         if errors:
             logger.warning(f"Import errors: {errors}")
+
+    def _on_import_builtin(self):
+        from app.ui.dialogs import BuiltinTemplateDialog
+        dialog = BuiltinTemplateDialog(self)
+        if dialog.exec() == BuiltinTemplateDialog.Accepted:
+            self.tree_panel.load_tree()
+            search_service.rebuild_index()
+
+    def _on_open_composer(self):
+        from app.ui.composer_dialog import ComposerDialog
+        dialog = ComposerDialog(self)
+        dialog.exec()
+        self.tree_panel.load_tree()
+        search_service.rebuild_index()
 
     def _select_import_category(self) -> str:
         from PySide6.QtWidgets import QInputDialog

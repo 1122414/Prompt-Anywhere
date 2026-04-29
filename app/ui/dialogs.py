@@ -1,19 +1,29 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QRadioButton,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
+
+from app.config import config
 
 
 class FolderDialog(QDialog):
@@ -296,3 +306,208 @@ class VariableNameDialog(QDialog):
 
     def get_variable_name(self) -> str:
         return self.name_input.text().strip()
+
+
+class TemplateDialog(QDialog):
+    def __init__(self, parent=None, filename: str = "", variables: list[str] = None, content: str = ""):
+        super().__init__(parent)
+        self._filename = filename
+        self._variables = variables or []
+        self._content = content
+        self._result = ""
+        self.setWindowTitle("使用模板")
+        self.setMinimumSize(config.template_dialog_width, config.template_dialog_height)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+
+        if self._filename:
+            name_label = QLabel(f"文件：{self._filename}")
+            name_label.setStyleSheet("color: #666; padding: 4px;")
+            layout.addWidget(name_label)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        self._form_layout = QFormLayout(scroll_widget)
+
+        self._inputs: dict[str, QWidget] = {}
+        for var_name in self._variables:
+            if self._is_multiline_variable(var_name):
+                input_widget = QPlainTextEdit()
+                input_widget.setMaximumHeight(100)
+                input_widget.setPlaceholderText(f"输入 {var_name}")
+            else:
+                input_widget = QLineEdit()
+                input_widget.setPlaceholderText(f"输入 {var_name}")
+            self._inputs[var_name] = input_widget
+            self._form_layout.addRow(f"{var_name}:", input_widget)
+
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        preview_label = QLabel("预览：")
+        layout.addWidget(preview_label)
+        self._preview = QPlainTextEdit()
+        self._preview.setReadOnly(True)
+        self._preview.setMaximumHeight(150)
+        layout.addWidget(self._preview)
+
+        button_layout = QHBoxLayout()
+        self._generate_btn = QPushButton("生成预览")
+        self._generate_btn.clicked.connect(self._on_generate)
+        button_layout.addWidget(self._generate_btn)
+
+        self._copy_btn = QPushButton("复制结果")
+        self._copy_btn.clicked.connect(self._on_copy)
+        self._copy_btn.setEnabled(False)
+        button_layout.addWidget(self._copy_btn)
+
+        self._export_btn = QPushButton("导出结果")
+        self._export_btn.clicked.connect(self._on_export)
+        self._export_btn.setEnabled(False)
+        button_layout.addWidget(self._export_btn)
+
+        self._cancel_btn = QPushButton("取消")
+        self._cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(self._cancel_btn)
+
+        layout.addLayout(button_layout)
+
+    def _is_multiline_variable(self, var_name: str) -> bool:
+        multiline_keywords = [
+            "requirements", "description", "content", "text", "code",
+            "background", "constraints", "forbidden", "acceptance_criteria",
+        ]
+        return any(kw in var_name.lower() for kw in multiline_keywords)
+
+    def _get_values(self) -> dict[str, str]:
+        values: dict[str, str] = {}
+        for var_name, input_widget in self._inputs.items():
+            if isinstance(input_widget, QPlainTextEdit):
+                values[var_name] = input_widget.toPlainText()
+            elif isinstance(input_widget, QLineEdit):
+                values[var_name] = input_widget.text()
+        return values
+
+    def _on_generate(self):
+        values = self._get_values()
+        from app.services.template_service import template_service
+        self._result = template_service.render(self._content, values)
+        self._preview.setPlainText(self._result)
+        self._copy_btn.setEnabled(True)
+        self._export_btn.setEnabled(True)
+
+    def _on_copy(self):
+        if self._result:
+            from app.services.clipboard_service import clipboard_service
+            clipboard_service.copy_text(self._result)
+            QMessageBox.information(self, "复制成功", "已复制到剪贴板")
+
+    def _on_export(self):
+        if not self._result:
+            return
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "导出结果", f"{self._filename}_filled.md",
+            "Markdown Files (*.md);;Text Files (*.txt)",
+        )
+        if file_path:
+            from pathlib import Path
+            Path(file_path).write_text(self._result, encoding=config.file_encoding)
+            QMessageBox.information(self, "导出成功", f"已导出到：{file_path}")
+
+    def get_result(self) -> str:
+        return self._result
+
+
+class BuiltinTemplateDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("导入内置模板")
+        self.setMinimumSize(500, 400)
+        self._setup_ui()
+        self._load_templates()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+
+        list_label = QLabel("选择要导入的模板：")
+        layout.addWidget(list_label)
+
+        self._template_list = QListWidget()
+        self._template_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        layout.addWidget(self._template_list)
+
+        category_layout = QHBoxLayout()
+        category_layout.addWidget(QLabel("导入到分类："))
+
+        self._category_combo = QComboBox()
+        self._load_categories()
+        category_layout.addWidget(self._category_combo)
+
+        self._new_category_btn = QPushButton("新建分类")
+        self._new_category_btn.clicked.connect(self._on_new_category)
+        category_layout.addWidget(self._new_category_btn)
+
+        layout.addLayout(category_layout)
+
+        button_layout = QHBoxLayout()
+        self._import_btn = QPushButton("导入选中")
+        self._import_btn.clicked.connect(self._on_import)
+        button_layout.addWidget(self._import_btn)
+
+        self._cancel_btn = QPushButton("取消")
+        self._cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(self._cancel_btn)
+
+        layout.addLayout(button_layout)
+
+    def _load_categories(self):
+        from app.services.file_service import file_service
+        categories = file_service.get_categories()
+        self._category_combo.clear()
+        self._category_combo.addItems(categories)
+
+    def _load_templates(self):
+        from app.services.builtin_template_service import builtin_template_service
+        templates = builtin_template_service.list_templates()
+
+        self._template_list.clear()
+        for template in templates:
+            item = QListWidgetItem()
+            item.setText(f"{template['category']}/{template['name']}" if template["category"] else template["name"])
+            item.setData(Qt.ItemDataRole.UserRole, template["path"])
+            self._template_list.addItem(item)
+
+    def _on_new_category(self):
+        name, ok = QInputDialog.getText(self, "新建分类", "分类名称：")
+        if ok and name:
+            from app.services.file_service import file_service
+            if file_service.create_category(name):
+                self._load_categories()
+                self._category_combo.setCurrentText(name)
+            else:
+                QMessageBox.warning(self, "错误", f"创建分类失败：{name}")
+
+    def _on_import(self):
+        selected_items = self._template_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "提示", "请先选择要导入的模板")
+            return
+
+        category = self._category_combo.currentText()
+        if not category:
+            QMessageBox.warning(self, "提示", "请选择目标分类")
+            return
+
+        template_paths = [item.data(Qt.ItemDataRole.UserRole) for item in selected_items]
+
+        from app.services.builtin_template_service import builtin_template_service
+        success_count, errors = builtin_template_service.import_templates(template_paths, category)
+
+        if success_count > 0:
+            QMessageBox.information(self, "导入成功", f"成功导入 {success_count} 个模板到 {category}")
+            self.accept()
+        else:
+            QMessageBox.warning(self, "导入失败", "\n".join(errors) if errors else "导入失败")

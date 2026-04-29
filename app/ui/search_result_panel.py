@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
+    QMessageBox,
     QPlainTextEdit,
     QSplitter,
     QTextBrowser,
@@ -58,6 +60,9 @@ class SearchResultPanel(QWidget):
             }}
         """)
         self.result_list.currentItemChanged.connect(self._on_selection_changed)
+        self.result_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.result_list.customContextMenuRequested.connect(self._show_context_menu)
+        self.result_list.itemDoubleClicked.connect(self._on_double_clicked)
         self.splitter.addWidget(self.result_list)
 
         self.preview = QTextBrowser()
@@ -128,6 +133,32 @@ class SearchResultPanel(QWidget):
             self.preview.setPlainText("(无法读取文件)")
             return
         self.preview.setPlainText(content)
+
+    def _show_context_menu(self, position):
+        item = self.result_list.itemAt(position)
+        if not item:
+            return
+        row = self.result_list.row(item)
+        if row < 0 or row >= len(self._results):
+            return
+        result = self._results[row]
+        menu = QMenu(self)
+        menu.addAction("加入组合器", lambda: self._add_to_composer(result))
+        menu.addAction("转到主界面打开", lambda: self.result_selected.emit(result))
+        menu.exec(self.result_list.mapToGlobal(position))
+
+    def _add_to_composer(self, result):
+        from app.services.composer_service import composer_service
+        if composer_service.add_file(result.path):
+            QMessageBox.information(self, "加入成功", f"已将 {result.filename} 加入组合器")
+        else:
+            QMessageBox.information(self, "提示", f"{result.filename} 已在组合器中")
+
+    def _on_double_clicked(self, item):
+        row = self.result_list.row(item)
+        if 0 <= row < len(self._results):
+            result = self._results[row]
+            self.result_selected.emit(result)
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:

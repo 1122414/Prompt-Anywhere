@@ -268,7 +268,10 @@ class EditorPanel(QWidget):
             clipboard_service.copy_text(content)
             return
 
-        QMessageBox.information(self, "使用模板", "模板变量填写功能将在下一步实现。")
+        filename = self._current_prompt.name if self._current_prompt else ""
+        from app.ui.dialogs import TemplateDialog
+        dialog = TemplateDialog(self, filename=filename, variables=variables, content=content)
+        dialog.exec()
 
     def check_unsaved(self) -> str:
         if self._is_modified:

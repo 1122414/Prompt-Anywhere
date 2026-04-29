@@ -98,8 +98,10 @@ class TestHistoryService(unittest.TestCase):
         self.assertTrue(result)
 
     def test_list_versions(self):
+        import time
         self.service.create_version(self.file_path, "version 1")
         self.file_path.write_text("version 1")
+        time.sleep(1.1)
         self.service.create_version(self.file_path, "version 2")
         versions = self.service.list_versions(self.file_path)
         self.assertEqual(len(versions), 2)

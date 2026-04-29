@@ -319,11 +319,11 @@ class Config:
     # ============ UI 按钮显示配置 ============
     @property
     def show_template_button(self) -> bool:
-        return self._get_env("SHOW_TEMPLATE_BUTTON", True)
+        return self._get_pref("show_template_button", self._get_env("SHOW_TEMPLATE_BUTTON", True))
 
     @property
     def show_composer_button(self) -> bool:
-        return self._get_env("SHOW_COMPOSER_BUTTON", True)
+        return self._get_pref("show_composer_button", self._get_env("SHOW_COMPOSER_BUTTON", True))
 
     @property
     def composer_window_width(self) -> int:
@@ -349,7 +349,7 @@ class Config:
 
     @property
     def enable_builtin_templates(self) -> bool:
-        return self._get_env("ENABLE_BUILTIN_TEMPLATES", True)
+        return self._get_pref("enable_builtin_templates", self._get_env("ENABLE_BUILTIN_TEMPLATES", True))
 
     # ============ 文件夹图标配置 ============
     def folder_icon(self, folder_path: str) -> str:

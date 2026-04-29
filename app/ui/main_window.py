@@ -155,6 +155,11 @@ class MainWindow(QMainWindow):
             self.import_builtin_btn.clicked.connect(self._on_import_builtin)
             toolbar.addWidget(self.import_builtin_btn)
 
+        if config.show_template_button:
+            self.use_template_btn = QPushButton("使用模板")
+            self.use_template_btn.clicked.connect(self._on_use_template_from_toolbar)
+            toolbar.addWidget(self.use_template_btn)
+
         if config.show_composer_button:
             self.composer_btn = QPushButton("组合器")
             self.composer_btn.clicked.connect(self._on_open_composer)
@@ -271,6 +276,13 @@ class MainWindow(QMainWindow):
         dialog.exec()
         self.tree_panel.load_tree()
         search_service.rebuild_index()
+
+    def _on_use_template_from_toolbar(self):
+        prompt = self.editor_panel.get_current_prompt()
+        if not prompt:
+            QMessageBox.information(self, "提示", "请先打开一个提示词文件")
+            return
+        self.editor_panel._on_use_template()
 
     def _select_import_category(self) -> str:
         from PySide6.QtWidgets import QInputDialog

@@ -291,7 +291,8 @@ class Config:
     # ============ Composer 配置 ============
     @property
     def composer_separator(self) -> str:
-        return self._get_env("COMPOSER_SEPARATOR", "\n\n---\n\n")
+        raw = self._get_env("COMPOSER_SEPARATOR", "\n\n---\n\n")
+        return raw.replace("\\n", "\n").replace("\\t", "\t")
 
     @property
     def composer_include_file_title(self) -> bool:

@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from app.config import config
 from app.services.file_service import file_service
@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 class BuiltinTemplateService:
     _instance = None
-    _template_dir: Path
 
     def __new__(cls):
         if cls._instance is None:

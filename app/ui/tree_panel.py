@@ -298,6 +298,7 @@ class TreePanel(QWidget):
                 else:
                     menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
                 menu.addAction("复制内容", lambda: self._copy_prompt(data))
+                menu.addAction("加入组合器", lambda: self._add_to_composer(data))
                 menu.addSeparator()
                 menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
                 selected = self.tree.selectedItems()
@@ -569,6 +570,14 @@ class TreePanel(QWidget):
         if clipboard_service.copy_text(content):
             rel = prompt.path.relative_to(config.data_dir).as_posix()
             state_service.add_recent_file(rel)
+
+    def _add_to_composer(self, prompt: PromptFile):
+        from app.services.composer_service import composer_service
+        rel = prompt.path.relative_to(config.data_dir).as_posix()
+        if composer_service.add_file(rel):
+            QMessageBox.information(self, "加入成功", f"已将 {prompt.name} 加入组合器")
+        else:
+            QMessageBox.information(self, "提示", f"{prompt.name} 已在组合器中")
 
     def _toggle_favorite(self, file_path: str, add: bool):
         if add:

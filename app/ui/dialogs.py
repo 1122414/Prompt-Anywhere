@@ -173,6 +173,18 @@ class SettingsDialog(QDialog):
         self.esc_hide_cb.setChecked(True)
         form.addRow(self.esc_hide_cb)
 
+        self.show_template_btn_cb = QCheckBox("显示使用模板按钮")
+        self.show_template_btn_cb.setChecked(True)
+        form.addRow(self.show_template_btn_cb)
+
+        self.show_composer_btn_cb = QCheckBox("显示组合器按钮")
+        self.show_composer_btn_cb.setChecked(True)
+        form.addRow(self.show_composer_btn_cb)
+
+        self.enable_builtin_cb = QCheckBox("启用内置模板")
+        self.enable_builtin_cb.setChecked(True)
+        form.addRow(self.enable_builtin_cb)
+
         layout.addLayout(form)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -192,6 +204,9 @@ class SettingsDialog(QDialog):
         self.copy_auto_hide_cb.setChecked(state_service.get_preference("copy_auto_hide", True))
         self.copy_hide_delay_spin.setValue(int(state_service.get_preference("copy_hide_delay_ms", 200)))
         self.esc_hide_cb.setChecked(state_service.get_preference("esc_hide_enabled", True))
+        self.show_template_btn_cb.setChecked(state_service.get_preference("show_template_button", True))
+        self.show_composer_btn_cb.setChecked(state_service.get_preference("show_composer_button", True))
+        self.enable_builtin_cb.setChecked(state_service.get_preference("enable_builtin_templates", True))
 
     def _on_accept(self):
         from app.services.state_service import state_service
@@ -200,6 +215,9 @@ class SettingsDialog(QDialog):
         state_service.set_preference("copy_auto_hide", self.copy_auto_hide_cb.isChecked())
         state_service.set_preference("copy_hide_delay_ms", self.copy_hide_delay_spin.value())
         state_service.set_preference("esc_hide_enabled", self.esc_hide_cb.isChecked())
+        state_service.set_preference("show_template_button", self.show_template_btn_cb.isChecked())
+        state_service.set_preference("show_composer_button", self.show_composer_btn_cb.isChecked())
+        state_service.set_preference("enable_builtin_templates", self.enable_builtin_cb.isChecked())
         self.accept()
 
     def _on_reset(self):
@@ -210,6 +228,9 @@ class SettingsDialog(QDialog):
         self.copy_auto_hide_cb.setChecked(True)
         self.copy_hide_delay_spin.setValue(200)
         self.esc_hide_cb.setChecked(True)
+        self.show_template_btn_cb.setChecked(True)
+        self.show_composer_btn_cb.setChecked(True)
+        self.enable_builtin_cb.setChecked(True)
 
 
 class VariableNameDialog(QDialog):
@@ -393,6 +414,10 @@ class TemplateDialog(QDialog):
 
     def _on_generate(self):
         values = self._get_values()
+        empty_vars = [k for k, v in values.items() if not v.strip()]
+        if empty_vars:
+            QMessageBox.warning(self, "提示", f"请填写以下变量：{', '.join(empty_vars)}")
+            return
         from app.services.template_service import template_service
         self._result = template_service.render(self._content, values)
         self._preview.setPlainText(self._result)

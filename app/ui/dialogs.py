@@ -463,7 +463,7 @@ class BuiltinTemplateDialog(QDialog):
         layout.addWidget(list_label)
 
         self._template_list = QListWidget()
-        self._template_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        self._template_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         layout.addWidget(self._template_list)
 
         category_layout = QHBoxLayout()

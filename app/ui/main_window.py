@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSlider,
@@ -142,23 +143,24 @@ class MainWindow(QMainWindow):
         self.pin_btn.clicked.connect(self._toggle_always_on_top)
         toolbar.addWidget(self.pin_btn)
 
-        self.import_file_btn = QPushButton("导入文件")
-        self.import_file_btn.clicked.connect(self._on_import_file)
-        toolbar.addWidget(self.import_file_btn)
+        self.import_menu = QMenu(self)
+        self.import_menu.addAction("导入文件", self._on_import_file)
+        self.import_menu.addAction("导入文件夹", self._on_import_folder)
 
-        self.import_folder_btn = QPushButton("导入文件夹")
-        self.import_folder_btn.clicked.connect(self._on_import_folder)
-        toolbar.addWidget(self.import_folder_btn)
+        self.import_btn = QPushButton("导入 ▾")
+        self.import_btn.setMenu(self.import_menu)
+        toolbar.addWidget(self.import_btn)
 
-        if config.enable_builtin_templates:
-            self.import_builtin_btn = QPushButton("导入内置模板")
-            self.import_builtin_btn.clicked.connect(self._on_import_builtin)
-            toolbar.addWidget(self.import_builtin_btn)
-
+        self.template_menu = QMenu(self)
         if config.show_template_button:
-            self.use_template_btn = QPushButton("使用模板")
-            self.use_template_btn.clicked.connect(self._on_use_template_from_toolbar)
-            toolbar.addWidget(self.use_template_btn)
+            self.template_menu.addAction("使用模板", self._on_use_template_from_toolbar)
+        self.template_menu.addAction("保存为模板", self._on_save_as_template)
+        if config.enable_builtin_templates:
+            self.template_menu.addAction("导入内置模板", self._on_import_builtin)
+
+        self.template_btn = QPushButton("模板 ▾")
+        self.template_btn.setMenu(self.template_menu)
+        toolbar.addWidget(self.template_btn)
 
         if config.show_composer_button:
             self.composer_btn = QPushButton("组合器")
@@ -283,6 +285,38 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "提示", "请先打开一个提示词文件")
             return
         self.editor_panel._on_use_template()
+
+    def _on_save_as_template(self):
+        prompt = self.editor_panel.get_current_prompt()
+        if not prompt:
+            QMessageBox.information(self, "提示", "请先打开一个提示词文件")
+            return
+        content = self.editor_panel.get_content()
+        if not content.strip():
+            QMessageBox.warning(self, "提示", "当前内容为空，无法保存为模板")
+            return
+
+        from PySide6.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "保存为模板", "模板名称：", text=prompt.name)
+        if not ok or not name:
+            return
+
+        template_dir = config.data_dir / "我的模板"
+        template_dir.mkdir(parents=True, exist_ok=True)
+        template_path = template_dir / f"{name}.md"
+        if template_path.exists():
+            reply = QMessageBox.question(
+                self, "确认覆盖",
+                f"模板 '{name}' 已存在，是否覆盖？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+        template_path.write_text(content, encoding=config.file_encoding)
+        search_service.update_index_file(f"我的模板/{name}.md")
+        QMessageBox.information(self, "保存成功", f"模板已保存到：我的模板/{name}.md")
 
     def _select_import_category(self) -> str:
         from PySide6.QtWidgets import QInputDialog

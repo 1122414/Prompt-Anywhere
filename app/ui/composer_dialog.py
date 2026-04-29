@@ -47,6 +47,7 @@ class ComposerDialog(QDialog):
         left_layout.addWidget(QLabel("可选提示词"))
 
         self._available_list = QListWidget()
+        self._available_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         self._available_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self._available_list.customContextMenuRequested.connect(self._show_available_context_menu)
         left_layout.addWidget(self._available_list)
@@ -94,10 +95,11 @@ class ComposerDialog(QDialog):
 
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        right_layout.addWidget(QLabel("组合预览"))
+        right_layout.addWidget(QLabel("组合预览（可编辑）"))
 
         self._preview = QPlainTextEdit()
-        self._preview.setReadOnly(True)
+        self._preview.setReadOnly(False)
+        self._preview.textChanged.connect(self._on_preview_changed)
         right_layout.addWidget(self._preview)
 
         splitter.addWidget(right_panel)
@@ -182,20 +184,31 @@ class ComposerDialog(QDialog):
 
     def _update_preview(self):
         content = composer_service.build()
+        self._preview.blockSignals(True)
         self._preview.setPlainText(content)
+        self._preview.blockSignals(False)
 
         from app.services.template_service import template_service
         variables = template_service.extract_variables(content)
         self._use_template_btn.setEnabled(len(variables) > 0)
 
+    def _on_preview_changed(self):
+        from app.services.template_service import template_service
+        content = self._preview.toPlainText()
+        variables = template_service.extract_variables(content)
+        self._use_template_btn.setEnabled(len(variables) > 0)
+
+    def _get_content(self):
+        return self._preview.toPlainText()
+
     def _on_copy(self):
-        content = composer_service.build()
+        content = self._get_content()
         if content:
             clipboard_service.copy_text(content)
             QMessageBox.information(self, "复制成功", "已复制组合结果到剪贴板")
 
     def _on_use_template(self):
-        content = composer_service.build()
+        content = self._get_content()
         if not content:
             return
 
@@ -211,7 +224,7 @@ class ComposerDialog(QDialog):
         dialog.exec()
 
     def _on_export(self):
-        content = composer_service.build()
+        content = self._get_content()
         if not content:
             QMessageBox.warning(self, "提示", "没有内容可导出")
             return
@@ -220,21 +233,25 @@ class ComposerDialog(QDialog):
             self, "导出组合结果", "组合结果.md", "Markdown Files (*.md);;Text Files (*.txt)"
         )
         if file_path:
-            success, msg = composer_service.export(Path(file_path))
-            if success:
-                QMessageBox.information(self, "导出成功", f"已导出到：{file_path}")
-            else:
-                QMessageBox.warning(self, "导出失败", msg)
+            Path(file_path).write_text(content, encoding=config.file_encoding)
+            QMessageBox.information(self, "导出成功", f"已导出到：{file_path}")
 
     def _on_save(self):
         name, ok = QInputDialog.getText(self, "保存组合", "组合名称：")
         if ok and name:
-            success, msg = composer_service.save(name)
-            if success:
-                QMessageBox.information(self, "保存成功", f"已保存到：{msg}")
+            content = self._get_content()
+            if not content:
+                QMessageBox.warning(self, "提示", "没有内容可保存")
+                return
+            try:
+                save_dir = config.composer_save_dir
+                save_dir.mkdir(parents=True, exist_ok=True)
+                file_path = save_dir / f"{name}.md"
+                file_path.write_text(content, encoding=config.file_encoding)
+                QMessageBox.information(self, "保存成功", f"已保存到：{file_path}")
                 self.accept()
-            else:
-                QMessageBox.warning(self, "保存失败", msg)
+            except Exception as e:
+                QMessageBox.warning(self, "保存失败", str(e))
 
     def _show_available_context_menu(self, position):
         menu = QMenu(self)

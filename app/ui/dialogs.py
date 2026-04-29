@@ -397,6 +397,8 @@ class TemplateDialog(QDialog):
         layout.addLayout(button_layout)
 
     def _is_multiline_variable(self, var_name: str) -> bool:
+        if not config.template_default_multiline:
+            return False
         multiline_keywords = [
             "requirements", "description", "content", "text", "code",
             "background", "constraints", "forbidden", "acceptance_criteria",

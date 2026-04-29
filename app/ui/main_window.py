@@ -505,8 +505,10 @@ class MainWindow(QMainWindow):
         if prompt:
             content = self.editor_panel.get_content()
             
-            from app.services.history_service import history_service
-            history_service.create_version(prompt.path, content)
+            from app.services.config_service import config_service
+            if config_service.get("history.enabled", True):
+                from app.services.history_service import history_service
+                history_service.create_version(prompt.path, content)
             
             if prompt.write_content(content):
                 self.editor_panel.mark_saved()

@@ -21,10 +21,12 @@ def _initialize_app():
     startup_service.initialize()
     
     from app.services.backup_service import backup_service
+    from app.services.config_service import config_service
+    
     backup_service.initialize(Path("backups"))
     
-    if backup_service.should_auto_backup():
-        from app.services.config_service import config_service
+    auto_backup_enabled = config_service.get("backup.auto_backup_enabled", True)
+    if auto_backup_enabled:
         interval = config_service.get("backup.auto_backup_interval_hours", 24)
         if backup_service.should_auto_backup(interval):
             try:

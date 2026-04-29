@@ -44,6 +44,23 @@ _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "MODEL_BASE_URL": ["model", "base_url"],
     "MODEL_TEMPERATURE": ["model", "temperature"],
     "FOLDER_ICONS": ["ui", "folder_icons"],
+    "TEMPLATE_VARIABLE_PATTERN": ["template", "variable_pattern"],
+    "TEMPLATE_VARIABLE_MAX_COUNT": ["template", "variable_max_count"],
+    "TEMPLATE_DEFAULT_MULTILINE": ["template", "default_multiline"],
+    "COMPOSER_SEPARATOR": ["composer", "separator"],
+    "COMPOSER_INCLUDE_FILE_TITLE": ["composer", "include_file_title"],
+    "COMPOSER_TITLE_LEVEL": ["composer", "title_level"],
+    "COMPOSER_AUTO_DETECT_VARIABLES": ["composer", "auto_detect_variables"],
+    "COMPOSER_SAVE_DIR": ["composer", "save_dir"],
+    "COMPOSER_EXPORT_DIR": ["composer", "export_dir"],
+    "SHOW_TEMPLATE_BUTTON": ["ui", "show_template_button"],
+    "SHOW_COMPOSER_BUTTON": ["ui", "show_composer_button"],
+    "COMPOSER_WINDOW_WIDTH": ["ui", "composer_window_width"],
+    "COMPOSER_WINDOW_HEIGHT": ["ui", "composer_window_height"],
+    "TEMPLATE_DIALOG_WIDTH": ["ui", "template_dialog_width"],
+    "TEMPLATE_DIALOG_HEIGHT": ["ui", "template_dialog_height"],
+    "BUILTIN_TEMPLATE_DIR": ["builtin_templates", "dir"],
+    "ENABLE_BUILTIN_TEMPLATES": ["builtin_templates", "enabled"],
 }
 
 
@@ -188,28 +205,11 @@ class Config:
         return self._get_env("SEARCH_HIGHLIGHT_ENABLED", True)
 
     @property
-    def search_selected_bg_color(self) -> str:
-        return self._get_env("SEARCH_SELECTED_BG_COLOR", "#e3f2fd")
-
-    @property
     def search_case_insensitive(self) -> bool:
         return self._get_env("SEARCH_CASE_INSENSITIVE", True)
 
     # ============ 复制配置 ============
-    @property
-    def copy_auto_hide(self) -> bool:
-        return self._get_env("COPY_AUTO_HIDE", True)
-
-    @property
-    def copy_hide_delay_ms(self) -> int:
-        return int(self._get_env("COPY_HIDE_DELAY_MS", "200"))
-
     # ============ Esc 配置 ============
-    @property
-    def max_recent_files(self) -> int:
-        val = int(self._get_pref("max_recent_files", int(self._get_env("MAX_RECENT_FILES", "10"))))
-        return max(1, min(val, 20))
-
     @property
     def search_selected_bg_color(self) -> str:
         return self._get_pref("search_selected_bg_color", self._get_env("SEARCH_SELECTED_BG_COLOR", "#e3f2fd"))
@@ -274,6 +274,81 @@ class Config:
     @property
     def model_temperature(self) -> float:
         return float(self._get_env("MODEL_TEMPERATURE", "0.7"))
+
+    # ============ 模板变量配置 ============
+    @property
+    def template_variable_pattern(self) -> str:
+        return self._get_env("TEMPLATE_VARIABLE_PATTERN", r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
+
+    @property
+    def template_variable_max_count(self) -> int:
+        return int(self._get_env("TEMPLATE_VARIABLE_MAX_COUNT", "50"))
+
+    @property
+    def template_default_multiline(self) -> bool:
+        return self._get_env("TEMPLATE_DEFAULT_MULTILINE", True)
+
+    # ============ Composer 配置 ============
+    @property
+    def composer_separator(self) -> str:
+        return self._get_env("COMPOSER_SEPARATOR", "\n\n---\n\n")
+
+    @property
+    def composer_include_file_title(self) -> bool:
+        return self._get_env("COMPOSER_INCLUDE_FILE_TITLE", True)
+
+    @property
+    def composer_title_level(self) -> int:
+        return int(self._get_env("COMPOSER_TITLE_LEVEL", "1"))
+
+    @property
+    def composer_auto_detect_variables(self) -> bool:
+        return self._get_env("COMPOSER_AUTO_DETECT_VARIABLES", True)
+
+    @property
+    def composer_save_dir(self) -> Path:
+        path = self._get_env("COMPOSER_SAVE_DIR", "./data/组合模板")
+        return Path(path).resolve()
+
+    @property
+    def composer_export_dir(self) -> Path:
+        path = self._get_env("COMPOSER_EXPORT_DIR", "./exports")
+        return Path(path).resolve()
+
+    # ============ UI 按钮显示配置 ============
+    @property
+    def show_template_button(self) -> bool:
+        return self._get_env("SHOW_TEMPLATE_BUTTON", True)
+
+    @property
+    def show_composer_button(self) -> bool:
+        return self._get_env("SHOW_COMPOSER_BUTTON", True)
+
+    @property
+    def composer_window_width(self) -> int:
+        return int(self._get_env("COMPOSER_WINDOW_WIDTH", "900"))
+
+    @property
+    def composer_window_height(self) -> int:
+        return int(self._get_env("COMPOSER_WINDOW_HEIGHT", "600"))
+
+    @property
+    def template_dialog_width(self) -> int:
+        return int(self._get_env("TEMPLATE_DIALOG_WIDTH", "700"))
+
+    @property
+    def template_dialog_height(self) -> int:
+        return int(self._get_env("TEMPLATE_DIALOG_HEIGHT", "520"))
+
+    # ============ 内置模板配置 ============
+    @property
+    def builtin_template_dir(self) -> Path:
+        path = self._get_env("BUILTIN_TEMPLATE_DIR", "./builtin_templates")
+        return Path(path).resolve()
+
+    @property
+    def enable_builtin_templates(self) -> bool:
+        return self._get_env("ENABLE_BUILTIN_TEMPLATES", True)
 
     # ============ 文件夹图标配置 ============
     def folder_icon(self, folder_path: str) -> str:

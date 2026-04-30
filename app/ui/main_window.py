@@ -1,6 +1,9 @@
+import ctypes
+import ctypes.wintypes
 import logging
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ from app.services.clipboard_service import clipboard_service
 from app.services.export_service import export_service
 from app.services.file_service import PromptFile, file_service
 from app.services.search_service import SearchResult, search_service
+from app.services.config_service import config_service
 from app.services.state_service import state_service
 from app.services.startup_service import startup_service
 from app.services.logging_service import logging_service
@@ -38,36 +42,81 @@ from app.ui.search_popup import SearchPopupWindow
 from app.ui.tray import TrayManager
 from app.ui.tree_panel import TreePanel
 
+WM_HOTKEY = 0x0312
+WM_QUIT = 0x0012
+MOD_ALT = 0x0001
+MOD_CONTROL = 0x0002
+MOD_SHIFT = 0x0004
+MOD_WIN = 0x0008
+MOD_NOREPEAT = 0x4000
+
+user32 = ctypes.windll.user32
+
+_VK_MAP = {
+    "backspace": 0x08, "tab": 0x09, "enter": 0x0D, "return": 0x0D,
+    "pause": 0x13, "capslock": 0x14, "escape": 0x1B, "esc": 0x1B,
+    "space": 0x20, "pageup": 0x21, "pagedown": 0x22,
+    "end": 0x23, "home": 0x24,
+    "left": 0x25, "up": 0x26, "right": 0x27, "down": 0x28,
+    "insert": 0x2D, "delete": 0x2E,
+    "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73,
+    "f5": 0x74, "f6": 0x75, "f7": 0x76, "f8": 0x77,
+    "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B,
+    "numlock": 0x90, "scrolllock": 0x91,
+}
+
+_MOD_MAP = {
+    "ctrl": MOD_CONTROL, "control": MOD_CONTROL,
+    "alt": MOD_ALT,
+    "shift": MOD_SHIFT,
+    "win": MOD_WIN, "super": MOD_WIN, "cmd": MOD_WIN,
+}
+
 
 class HotkeyThread(QThread):
     hotkey_pressed = Signal()
 
-    def __init__(self, hotkey_str):
+    def __init__(self, hotkey_str, hotkey_id=1):
         super().__init__()
         self.hotkey_str = hotkey_str
+        self.hotkey_id = hotkey_id
         self._running = True
-        self._hotkey = None
+        self._native_thread_id = None
+        self._modifiers, self._vk = self._parse_hotkey(hotkey_str)
+
+    @staticmethod
+    def _parse_hotkey(hotkey_str):
+        parts = [p.strip().lower() for p in hotkey_str.split("+")]
+        modifiers = 0
+        vk = 0
+        for part in parts:
+            if part in _MOD_MAP:
+                modifiers |= _MOD_MAP[part]
+            elif part in _VK_MAP:
+                vk = _VK_MAP[part]
+            elif len(part) == 1:
+                vk = ord(part.upper())
+            else:
+                logger.warning(f"Unknown hotkey part: {part}")
+        return modifiers | MOD_NOREPEAT, vk
 
     def run(self):
-        try:
-            from pynput import keyboard
-
-            def on_hotkey():
+        self._native_thread_id = threading.get_native_id()
+        if not user32.RegisterHotKey(None, self.hotkey_id, self._modifiers, self._vk):
+            logger.warning(f"Failed to register hotkey: {self.hotkey_str} (id={self.hotkey_id})")
+            return
+        logger.info(f"Hotkey registered via Win32 API: {self.hotkey_str} (id={self.hotkey_id})")
+        msg = ctypes.wintypes.MSG()
+        while user32.GetMessageA(ctypes.byref(msg), None, 0, 0):
+            if msg.message == WM_HOTKEY and msg.wParam == self.hotkey_id:
                 if self._running:
                     self.hotkey_pressed.emit()
-
-            self._hotkey = keyboard.GlobalHotKeys({
-                self.hotkey_str: on_hotkey
-            })
-            self._hotkey.start()
-            while self._running:
-                self.msleep(100)
-            self._hotkey.stop()
-        except Exception as e:
-            logger.warning(f"Hotkey registration failed: {e}")
+        user32.UnregisterHotKey(None, self.hotkey_id)
 
     def stop(self):
         self._running = False
+        if self._native_thread_id:
+            user32.PostThreadMessageW(self._native_thread_id, WM_QUIT, 0, 0)
         self.wait(2000)
 
 
@@ -343,6 +392,7 @@ class MainWindow(QMainWindow):
         if dialog.exec() == SettingsDialog.Accepted:
             self.statusBar().showMessage("设置已保存", 2000)
             self.tree_panel.load_tree()
+            self.restart_hotkey()
 
     def _setup_tray(self):
         self.tray = TrayManager(self)
@@ -355,14 +405,33 @@ class MainWindow(QMainWindow):
 
     def _setup_hotkey(self):
         try:
-            hotkey_str = config.hotkey.lower()
-            self.hotkey_thread = HotkeyThread(hotkey_str)
+            hotkey_str = config_service.get("behavior.hotkey", config.hotkey).lower()
+            self.hotkey_thread = HotkeyThread(hotkey_str, hotkey_id=1)
             self.hotkey_thread.hotkey_pressed.connect(self.toggle_quick)
             self.hotkey_thread.start()
+            logger.info(f"Quick hotkey registered: {hotkey_str}")
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Failed to setup hotkey: {e}")
+            logger.warning(f"Failed to setup quick hotkey: {e}")
             self.hotkey_thread = None
+
+        try:
+            main_hotkey_str = config_service.get("behavior.main_hotkey", "ctrl+alt+m").lower()
+            self.main_hotkey_thread = HotkeyThread(main_hotkey_str, hotkey_id=2)
+            self.main_hotkey_thread.hotkey_pressed.connect(self.toggle_visibility)
+            self.main_hotkey_thread.start()
+            logger.info(f"Main hotkey registered: {main_hotkey_str}")
+        except Exception as e:
+            logger.warning(f"Failed to setup main hotkey: {e}")
+            self.main_hotkey_thread = None
+
+    def restart_hotkey(self):
+        if self.hotkey_thread:
+            self.hotkey_thread.stop()
+            self.hotkey_thread = None
+        if self.main_hotkey_thread:
+            self.main_hotkey_thread.stop()
+            self.main_hotkey_thread = None
+        self._setup_hotkey()
 
     def _setup_shortcuts(self):
         self.search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
@@ -375,7 +444,10 @@ class MainWindow(QMainWindow):
         self.tree_panel.load_tree()
 
     def toggle_visibility(self):
-        self.toggle_quick()
+        if self.isVisible() and not self.isMinimized():
+            self.hide()
+        else:
+            self.show_main()
 
     def show_main(self):
         self.showNormal()
@@ -768,6 +840,8 @@ class MainWindow(QMainWindow):
     def _force_quit(self):
         if self.hotkey_thread:
             self.hotkey_thread.stop()
+        if self.main_hotkey_thread:
+            self.main_hotkey_thread.stop()
         self.tray.hide()
         self._save_window_state()
         QApplication.instance().quit()

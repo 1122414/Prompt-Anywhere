@@ -66,6 +66,11 @@ class QuickWindow(QMainWindow):
         if self.isVisible() and not self.isMinimized():
             self.hide()
         else:
+            self.setWindowFlags(
+                self.windowFlags()
+                | Qt.WindowStaysOnTopHint
+                | Qt.Tool
+            )
             self.showNormal()
             self.activateWindow()
             self.raise_()
@@ -97,7 +102,7 @@ class QuickWindow(QMainWindow):
             self.search_result_panel.clear_results()
             return
         self.search_result_panel.set_results(results, self._last_search_keyword)
-        if self.search_result_panel.list_widget.count() > 0:
+        if self.search_result_panel.result_list.count() > 0:
             self.search_result_panel.select_first()
 
     def _on_result_selected(self, result: SearchResult):
@@ -124,7 +129,7 @@ class QuickWindow(QMainWindow):
 
     def eventFilter(self, obj, event):
         if obj == self.search_input and event.type() == event.Type.KeyPress:
-            if self.search_result_panel.isVisible() and self.search_result_panel.list_widget.count() > 0:
+            if self.search_result_panel.isVisible() and self.search_result_panel.result_list.count() > 0:
                 if event.key() == Qt.Key_Down:
                     self.search_result_panel.select_next()
                     return True

@@ -10,6 +10,7 @@ from app.config import config
 from app.services.pinyin_service import pinyin_service
 from app.services.search_matcher import FuzzyMatchResult, search_matcher
 from app.services.search_ranker import search_ranker
+from app.services.semantic_search_service import semantic_search_service
 from app.services.state_service import state_service
 
 logger = logging.getLogger(__name__)
@@ -232,6 +233,15 @@ class SearchWorker(QThread):
                     snippets=content_matches[:3],
                     score=score,
                 ))
+
+        if config.semantic_search_enabled and not self._cancelled:
+            semantic_results = semantic_search_service.search(keyword)
+            semantic_scores = {path: score for path, score in semantic_results}
+            for result in results:
+                semantic_score = semantic_scores.get(result.path, 0.0)
+                if semantic_score > 0:
+                    result.matched_fields.append("semantic")
+                    result.score = int(result.score * 0.75 + semantic_score * 100 * 0.25)
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]

@@ -18,6 +18,7 @@ class EmbeddingService:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._cache: Dict[str, np.ndarray] = {}
         return cls._instance
 
     def _get_headers(self) -> Dict[str, str]:
@@ -59,10 +60,18 @@ class EmbeddingService:
             return None
 
     def embed_query(self, text: str) -> Optional[np.ndarray]:
+        if not text:
+            return None
+        if text in self._cache:
+            return self._cache[text]
         result = self.embed_texts([text])
         if result is not None and len(result) > 0:
+            self._cache[text] = result[0]
             return result[0]
         return None
+
+    def clear_cache(self):
+        self._cache.clear()
 
 
 embedding_service = EmbeddingService()

@@ -290,12 +290,19 @@ class SearchService:
     def search_async(self, keyword: str, case_insensitive: bool = True):
         if self._worker is not None:
             self._worker.cancel()
-            self._worker.wait(100)
+            try:
+                self._worker.results_ready.disconnect()
+            except Exception:
+                pass
+            old_worker = self._worker
+            old_worker.finished.connect(old_worker.deleteLater)
+            self._worker = None
 
         self._current_search_id += 1
         search_id = self._current_search_id
 
         self._worker = SearchWorker(search_id, keyword, self._index.get_items(), case_insensitive)
+        self._worker.finished.connect(self._worker.deleteLater)
         return search_id, self._worker
 
     def get_current_search_id(self) -> int:

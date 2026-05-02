@@ -1,16 +1,18 @@
 ---
 active: true
-iteration: 3
+iteration: 1
 max_iterations: 500
 completion_promise: "DONE"
 initial_completion_promise: "DONE"
-started_at: "2026-04-27T10:26:09.854Z"
-session_id: "ses_23241cc51ffeCC8uszL2IwOu2g"
+started_at: "2026-05-02T09:32:39.399Z"
+session_id: "ses_217fb2da5ffeb2OBcZUCK7gnih"
 ultrawork: true
 strategy: "continue"
-message_count_at_start: 234
+message_count_at_start: 11
 ---
-1.在新建文件夹时，要注意监测，如果已经有该名字的文件夹注意告诉用户已存在文件夹并且创建失败
-2.支持拖动文件夹、文件到另一个文件夹中，方便用户快速整理文件夹
-3.提供内置文件夹图标，用户可以选择文件夹图标来进行个性化分类
-4.[Image 1] 在“全部”这个根目录下，目录就不要缩进了，和根进行对齐
+> 现在开始执行这个plan
+> 1.环境变量都写入.env中，包括模型相关、常量相关，方便后续进行更改，并且用户可控设置写入ui界面的设置图标中
+> 2.要有全局观，注意后续能扩展重构
+> 3.每写完一个阶段的代码进行一次commit，注意只本地commit不要push到远程，注意使用中文commit信息，并且规范提交
+> 4.注意写完项目之后要告诉我如何进行调试测试项目完成情况，再补一个功能测试脚本
+> 5.严格按照全局AGENTS.md中行为准则去写项目

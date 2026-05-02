@@ -42,6 +42,9 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._create_window_tab(), "窗口")
         self.tabs.addTab(self._create_data_safety_tab(), "数据安全")
         self.tabs.addTab(self._create_features_tab(), "功能开关")
+        self.tabs.addTab(self._create_search_tab(), "搜索设置")
+        self.tabs.addTab(self._create_semantic_search_tab(), "语义搜索")
+        self.tabs.addTab(self._create_ai_template_tab(), "AI模板助手")
         self.tabs.addTab(self._create_about_tab(), "关于")
 
         layout.addWidget(self.tabs)
@@ -216,6 +219,104 @@ class SettingsDialog(QDialog):
 
         return tab
 
+    def _create_search_tab(self):
+        tab = QWidget()
+        layout = QFormLayout(tab)
+
+        self.search_enable_pinyin_cb = QCheckBox("启用拼音搜索")
+        layout.addRow(self.search_enable_pinyin_cb)
+
+        self.search_enable_initials_cb = QCheckBox("启用首字母搜索")
+        layout.addRow(self.search_enable_initials_cb)
+
+        self.search_enable_fuzzy_cb = QCheckBox("启用模糊搜索")
+        layout.addRow(self.search_enable_fuzzy_cb)
+
+        self.search_debounce_spin = QSpinBox()
+        self.search_debounce_spin.setMinimum(50)
+        self.search_debounce_spin.setMaximum(500)
+        self.search_debounce_spin.setSingleStep(10)
+        self.search_debounce_spin.setSuffix(" ms")
+        layout.addRow("搜索防抖时间:", self.search_debounce_spin)
+
+        self.search_max_results_spin = QSpinBox()
+        self.search_max_results_spin.setMinimum(10)
+        self.search_max_results_spin.setMaximum(500)
+        layout.addRow("最大搜索结果数:", self.search_max_results_spin)
+
+        self.search_fuzzy_mode_combo = QLineEdit()
+        self.search_fuzzy_mode_combo.setPlaceholderText("balanced")
+        layout.addRow("模糊搜索模式 (strict/balanced/loose):", self.search_fuzzy_mode_combo)
+
+        return tab
+
+    def _create_semantic_search_tab(self):
+        tab = QWidget()
+        layout = QFormLayout(tab)
+
+        self.semantic_search_enabled_cb = QCheckBox("启用语义搜索")
+        layout.addRow(self.semantic_search_enabled_cb)
+
+        self.semantic_search_provider_input = QLineEdit()
+        self.semantic_search_provider_input.setPlaceholderText("api 或 local")
+        layout.addRow("Embedding 提供者:", self.semantic_search_provider_input)
+
+        self.semantic_search_api_url_input = QLineEdit()
+        self.semantic_search_api_url_input.setPlaceholderText("https://api.openai.com/v1")
+        layout.addRow("API Base URL:", self.semantic_search_api_url_input)
+
+        self.semantic_search_api_key_input = QLineEdit()
+        self.semantic_search_api_key_input.setEchoMode(QLineEdit.Password)
+        layout.addRow("API Key:", self.semantic_search_api_key_input)
+
+        self.semantic_search_api_model_input = QLineEdit()
+        self.semantic_search_api_model_input.setPlaceholderText("text-embedding-3-small")
+        layout.addRow("API 模型:", self.semantic_search_api_model_input)
+
+        self.semantic_search_local_model_input = QLineEdit()
+        self.semantic_search_local_model_input.setPlaceholderText("BAAI/bge-small-zh-v1.5")
+        layout.addRow("本地模型:", self.semantic_search_local_model_input)
+
+        self.semantic_search_top_k_spin = QSpinBox()
+        self.semantic_search_top_k_spin.setMinimum(5)
+        self.semantic_search_top_k_spin.setMaximum(100)
+        layout.addRow("Top-K:", self.semantic_search_top_k_spin)
+
+        return tab
+
+    def _create_ai_template_tab(self):
+        tab = QWidget()
+        layout = QFormLayout(tab)
+
+        self.ai_template_enabled_cb = QCheckBox("启用 AI 模板助手")
+        layout.addRow(self.ai_template_enabled_cb)
+
+        self.ai_template_provider_input = QLineEdit()
+        self.ai_template_provider_input.setPlaceholderText("openai_compatible 或 ollama")
+        layout.addRow("AI 提供者:", self.ai_template_provider_input)
+
+        self.ai_template_base_url_input = QLineEdit()
+        layout.addRow("Base URL:", self.ai_template_base_url_input)
+
+        self.ai_template_api_key_input = QLineEdit()
+        self.ai_template_api_key_input.setEchoMode(QLineEdit.Password)
+        layout.addRow("API Key:", self.ai_template_api_key_input)
+
+        self.ai_template_model_input = QLineEdit()
+        layout.addRow("模型:", self.ai_template_model_input)
+
+        self.ai_template_temperature_spin = QSpinBox()
+        self.ai_template_temperature_spin.setMinimum(0)
+        self.ai_template_temperature_spin.setMaximum(20)
+        self.ai_template_temperature_spin.setSuffix(" * 0.1")
+        layout.addRow("温度参数:", self.ai_template_temperature_spin)
+
+        self.ai_template_detection_mode_input = QLineEdit()
+        self.ai_template_detection_mode_input.setPlaceholderText("rule / ai / hybrid")
+        layout.addRow("检测模式:", self.ai_template_detection_mode_input)
+
+        return tab
+
     def _create_about_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -317,6 +418,29 @@ class SettingsDialog(QDialog):
             config_service.get("features.builtin_templates", True)
         )
 
+        self.search_enable_pinyin_cb.setChecked(config.search_enable_pinyin)
+        self.search_enable_initials_cb.setChecked(config.search_enable_initials)
+        self.search_enable_fuzzy_cb.setChecked(config.search_enable_fuzzy)
+        self.search_debounce_spin.setValue(config.search_debounce_ms)
+        self.search_max_results_spin.setValue(config.search_max_results)
+        self.search_fuzzy_mode_combo.setText(config.search_fuzzy_mode)
+
+        self.semantic_search_enabled_cb.setChecked(config.semantic_search_enabled)
+        self.semantic_search_provider_input.setText(config.semantic_search_provider)
+        self.semantic_search_api_url_input.setText(config.semantic_search_api_base_url)
+        self.semantic_search_api_key_input.setText(config.semantic_search_api_key)
+        self.semantic_search_api_model_input.setText(config.semantic_search_api_model)
+        self.semantic_search_local_model_input.setText(config.semantic_search_local_model)
+        self.semantic_search_top_k_spin.setValue(config.semantic_search_top_k)
+
+        self.ai_template_enabled_cb.setChecked(config.ai_template_enabled)
+        self.ai_template_provider_input.setText(config.ai_template_provider)
+        self.ai_template_base_url_input.setText(config.ai_template_base_url)
+        self.ai_template_api_key_input.setText(config.ai_template_api_key)
+        self.ai_template_model_input.setText(config.ai_template_model)
+        self.ai_template_temperature_spin.setValue(int(config.ai_template_temperature * 10))
+        self.ai_template_detection_mode_input.setText(config.ai_template_detection_mode)
+
     def _on_accept(self):
         from app.services.config_service import config_service
         from app.services.state_service import state_service
@@ -349,5 +473,28 @@ class SettingsDialog(QDialog):
         config_service.set("features.template_variables", self.template_enabled_cb.isChecked())
         config_service.set("features.composer", self.composer_enabled_cb.isChecked())
         config_service.set("features.builtin_templates", self.builtin_templates_cb.isChecked())
+
+        config_service.set("search.enable_pinyin", self.search_enable_pinyin_cb.isChecked())
+        config_service.set("search.enable_initials", self.search_enable_initials_cb.isChecked())
+        config_service.set("search.enable_fuzzy", self.search_enable_fuzzy_cb.isChecked())
+        config_service.set("search.debounce_ms", self.search_debounce_spin.value())
+        config_service.set("search.max_results", self.search_max_results_spin.value())
+        config_service.set("search.fuzzy_mode", self.search_fuzzy_mode_combo.text())
+
+        config_service.set("semantic_search.enabled", self.semantic_search_enabled_cb.isChecked())
+        config_service.set("semantic_search.provider", self.semantic_search_provider_input.text())
+        config_service.set("semantic_search.api_base_url", self.semantic_search_api_url_input.text())
+        config_service.set("semantic_search.api_key", self.semantic_search_api_key_input.text())
+        config_service.set("semantic_search.api_model", self.semantic_search_api_model_input.text())
+        config_service.set("semantic_search.local_model", self.semantic_search_local_model_input.text())
+        config_service.set("semantic_search.top_k", self.semantic_search_top_k_spin.value())
+
+        config_service.set("ai_template.enabled", self.ai_template_enabled_cb.isChecked())
+        config_service.set("ai_template.provider", self.ai_template_provider_input.text())
+        config_service.set("ai_template.base_url", self.ai_template_base_url_input.text())
+        config_service.set("ai_template.api_key", self.ai_template_api_key_input.text())
+        config_service.set("ai_template.model", self.ai_template_model_input.text())
+        config_service.set("ai_template.temperature", self.ai_template_temperature_spin.value() / 10.0)
+        config_service.set("ai_template.detection_mode", self.ai_template_detection_mode_input.text())
 
         self.accept()

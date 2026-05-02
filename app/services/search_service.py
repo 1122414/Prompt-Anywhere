@@ -1,13 +1,15 @@
 import logging
 import re
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator, List, Optional
+from typing import List
 
 from PySide6.QtCore import QThread, Signal
 
 from app.config import config
+from app.services.pinyin_service import pinyin_service
+from app.services.search_matcher import FuzzyMatchResult, search_matcher
+from app.services.search_ranker import search_ranker
 from app.services.state_service import state_service
 
 logger = logging.getLogger(__name__)
@@ -30,12 +32,55 @@ class PromptFileIndexItem:
     filename: str
     content: str
     modified_time: float
+    filename_pinyin: str = ""
+    filename_initials: str = ""
+    category_pinyin: str = ""
+    category_initials: str = ""
+    content_preview: str = ""
 
 
 class SearchIndex:
     def __init__(self):
         self._items: List[PromptFileIndexItem] = []
         self._data_dir = config.data_dir
+
+    def _build_item(self, path: Path, rel: Path) -> PromptFileIndexItem:
+        category = str(rel.parent).replace("\\", "/") if str(rel.parent) != "." else ""
+        try:
+            content = path.read_text(encoding=config.file_encoding)
+        except Exception as e:
+            logger.warning(f"Failed to read {path}: {e}")
+            content = ""
+
+        filename_pinyin = ""
+        filename_initials = ""
+        category_pinyin = ""
+        category_initials = ""
+
+        if config.search_enable_pinyin or config.search_enable_initials:
+            filename_fields = pinyin_service.build_pinyin_fields(path.stem)
+            filename_pinyin = filename_fields.get("full", "")
+            filename_initials = filename_fields.get("initials", "")
+
+            if category:
+                category_fields = pinyin_service.build_pinyin_fields(category)
+                category_pinyin = category_fields.get("full", "")
+                category_initials = category_fields.get("initials", "")
+
+        content_preview = content[:3000] if content else ""
+
+        return PromptFileIndexItem(
+            path=str(rel).replace("\\", "/"),
+            category=category,
+            filename=path.stem,
+            content=content,
+            modified_time=path.stat().st_mtime,
+            filename_pinyin=filename_pinyin,
+            filename_initials=filename_initials,
+            category_pinyin=category_pinyin,
+            category_initials=category_initials,
+            content_preview=content_preview,
+        )
 
     def rebuild(self):
         self._items = []
@@ -44,19 +89,11 @@ class SearchIndex:
         for path in self._data_dir.rglob("*"):
             if path.is_file() and path.suffix.lower() in config.supported_prompt_extensions:
                 rel = path.relative_to(self._data_dir)
-                category = str(rel.parent).replace("\\", "/") if str(rel.parent) != "." else ""
                 try:
-                    content = path.read_text(encoding=config.file_encoding)
+                    item = self._build_item(path, rel)
+                    self._items.append(item)
                 except Exception as e:
-                    logger.warning(f"Failed to read {path}: {e}")
-                    content = ""
-                self._items.append(PromptFileIndexItem(
-                    path=str(rel).replace("\\", "/"),
-                    category=category,
-                    filename=path.stem,
-                    content=content,
-                    modified_time=path.stat().st_mtime,
-                ))
+                    logger.warning(f"Failed to index {path}: {e}")
 
     def update_file(self, rel_path: str):
         full_path = self._data_dir / rel_path
@@ -66,20 +103,12 @@ class SearchIndex:
         if full_path.suffix.lower() not in config.supported_prompt_extensions:
             return
         rel = full_path.relative_to(self._data_dir)
-        category = str(rel.parent).replace("\\", "/") if str(rel.parent) != "." else ""
         try:
-            content = full_path.read_text(encoding=config.file_encoding)
+            item = self._build_item(full_path, rel)
+            self._items = [i for i in self._items if i.path != rel_path]
+            self._items.append(item)
         except Exception as e:
-            logger.warning(f"Failed to read {full_path}: {e}")
-            content = ""
-        self._items = [item for item in self._items if item.path != rel_path]
-        self._items.append(PromptFileIndexItem(
-            path=str(rel).replace("\\", "/"),
-            category=category,
-            filename=full_path.stem,
-            content=content,
-            modified_time=full_path.stat().st_mtime,
-        ))
+            logger.warning(f"Failed to update index for {rel_path}: {e}")
 
     def remove_file(self, rel_path: str):
         self._items = [item for item in self._items if item.path != rel_path]
@@ -97,14 +126,20 @@ class SearchWorker(QThread):
         self.keyword = keyword
         self.index_items = index_items
         self.case_insensitive = case_insensitive
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
 
     def run(self):
         try:
             results = self._do_search()
-            self.results_ready.emit(self.search_id, results)
+            if not self._cancelled:
+                self.results_ready.emit(self.search_id, results)
         except Exception as e:
             logger.warning(f"Search worker error: {e}")
-            self.results_ready.emit(self.search_id, [])
+            if not self._cancelled:
+                self.results_ready.emit(self.search_id, [])
 
     def _do_search(self) -> List[SearchResult]:
         keyword = self.keyword.strip()
@@ -113,32 +148,81 @@ class SearchWorker(QThread):
 
         search_term = keyword.lower() if self.case_insensitive else keyword
         results = []
+        first_paint = config.search_first_paint_results
+        max_results = config.search_max_results
 
         for item in self.index_items:
+            if self._cancelled:
+                return []
+
             matched_fields = []
             score = 0
 
             name = item.filename.lower() if self.case_insensitive else item.filename
             content = item.content.lower() if self.case_insensitive else item.content
 
-            if search_term in name:
-                matched_fields.append("filename")
-                score += 100
+            fuzzy_filename = FuzzyMatchResult(0.0, False)
+            fuzzy_category = FuzzyMatchResult(0.0, False)
+            fuzzy_content = FuzzyMatchResult(0.0, False)
 
-            content_matches = []
-            if search_term in content:
-                matched_fields.append("content")
-                content_matches = self._find_snippets(item.content, keyword, self.case_insensitive)
-                score += len(content_matches) * 10
+            if config.search_enable_fuzzy:
+                fuzzy_filename = search_matcher.match_filename(search_term, name)
+                fuzzy_category = search_matcher.match_filename(search_term, item.category.lower())
+                fuzzy_content = search_matcher.match_content(search_term, item.content_preview)
 
-            if matched_fields:
-                if state_service.is_favorite(item.path):
-                    score += 50
-                recent_files = state_service.get_recent_files()
-                for recent in recent_files:
-                    if recent.get("path") == item.path:
-                        score += 30
-                        break
+            has_exact_match = (
+                search_term in name
+                or search_term in content
+                or search_term in item.category.lower()
+            )
+
+            has_pinyin_match = False
+            if config.search_enable_pinyin or config.search_enable_initials:
+                pinyin_result = search_matcher.match_pinyin(
+                    search_term,
+                    item.filename_pinyin.lower(),
+                    item.filename_initials.lower(),
+                )
+                has_pinyin_match = pinyin_result.matched
+                if has_pinyin_match:
+                    matched_fields.append("pinyin")
+
+            has_fuzzy_match = (
+                config.search_enable_fuzzy
+                and (fuzzy_filename.matched or fuzzy_category.matched or fuzzy_content.matched)
+            )
+
+            if has_exact_match or has_pinyin_match or has_fuzzy_match:
+                if search_term in name:
+                    matched_fields.append("filename")
+                if search_term in content:
+                    matched_fields.append("content")
+                if search_term in item.category.lower():
+                    matched_fields.append("category")
+
+                if fuzzy_filename.matched:
+                    matched_fields.append("fuzzy_filename")
+                if fuzzy_content.matched:
+                    matched_fields.append("fuzzy_content")
+
+                content_matches = []
+                if "content" in matched_fields or "fuzzy_content" in matched_fields:
+                    content_matches = self._find_snippets(item.content, keyword, self.case_insensitive)
+
+                score = search_ranker.calculate_score(
+                    keyword=keyword,
+                    filename=item.filename,
+                    category=item.category,
+                    content=item.content,
+                    path=item.path,
+                    filename_pinyin=item.filename_pinyin,
+                    filename_initials=item.filename_initials,
+                    category_pinyin=item.category_pinyin,
+                    category_initials=item.category_initials,
+                    fuzzy_filename_score=fuzzy_filename.score,
+                    fuzzy_category_score=fuzzy_category.score,
+                    fuzzy_content_score=fuzzy_content.score,
+                )
 
                 results.append(SearchResult(
                     path=item.path,
@@ -150,7 +234,6 @@ class SearchWorker(QThread):
                 ))
 
         results.sort(key=lambda r: r.score, reverse=True)
-        max_results = config.search_max_results
         return results[:max_results]
 
     def _find_snippets(self, content: str, keyword: str, case_insensitive: bool) -> List[str]:
@@ -194,7 +277,11 @@ class SearchService:
     def remove_index_file(self, rel_path: str):
         self._index.remove_file(rel_path)
 
-    def search_async(self, keyword: str, case_insensitive: bool = True) -> int:
+    def search_async(self, keyword: str, case_insensitive: bool = True):
+        if self._worker is not None:
+            self._worker.cancel()
+            self._worker.wait(100)
+
         self._current_search_id += 1
         search_id = self._current_search_id
 

@@ -41,6 +41,32 @@ _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "SEARCH_SNIPPET_RADIUS": ["search", "snippet_radius"],
     "SEARCH_HIGHLIGHT_ENABLED": ["search", "highlight_enabled"],
     "SEARCH_CASE_INSENSITIVE": ["search", "case_insensitive"],
+    "SEARCH_ENABLE_PINYIN": ["search", "enable_pinyin"],
+    "SEARCH_ENABLE_INITIALS": ["search", "enable_initials"],
+    "SEARCH_ENABLE_FUZZY": ["search", "enable_fuzzy"],
+    "SEARCH_FUZZY_THRESHOLD": ["search", "fuzzy_threshold"],
+    "SEARCH_FUZZY_MODE": ["search", "fuzzy_mode"],
+    "SEARCH_FIRST_PAINT_RESULTS": ["search", "first_paint_results"],
+    "SEMANTIC_SEARCH_ENABLED": ["semantic_search", "enabled"],
+    "SEMANTIC_SEARCH_PROVIDER": ["semantic_search", "provider"],
+    "SEMANTIC_SEARCH_LOCAL_MODEL": ["semantic_search", "local_model"],
+    "SEMANTIC_SEARCH_API_BASE_URL": ["semantic_search", "api_base_url"],
+    "SEMANTIC_SEARCH_API_KEY": ["semantic_search", "api_key"],
+    "SEMANTIC_SEARCH_API_MODEL": ["semantic_search", "api_model"],
+    "SEMANTIC_SEARCH_TOP_K": ["semantic_search", "top_k"],
+    "SEMANTIC_SEARCH_MIN_SCORE": ["semantic_search", "min_score"],
+    "SEMANTIC_SEARCH_INDEX_ON_STARTUP": ["semantic_search", "index_on_startup"],
+    "SEMANTIC_SEARCH_AUTO_REINDEX": ["semantic_search", "auto_reindex"],
+    "KNOWLEDGE_BASE_DIR": ["knowledge_base", "dir"],
+    "KNOWLEDGE_BASE_AUTO_SYNC": ["knowledge_base", "auto_sync"],
+    "AI_TEMPLATE_ENABLED": ["ai_template", "enabled"],
+    "AI_TEMPLATE_PROVIDER": ["ai_template", "provider"],
+    "AI_TEMPLATE_BASE_URL": ["ai_template", "base_url"],
+    "AI_TEMPLATE_API_KEY": ["ai_template", "api_key"],
+    "AI_TEMPLATE_MODEL": ["ai_template", "model"],
+    "AI_TEMPLATE_TEMPERATURE": ["ai_template", "temperature"],
+    "AI_TEMPLATE_TIMEOUT_SECONDS": ["ai_template", "timeout_seconds"],
+    "AI_TEMPLATE_DETECTION_MODE": ["ai_template", "detection_mode"],
     "SUPPORTED_PROMPT_EXTENSIONS": ["file", "supported_extensions"],
     "IMAGE_ASSETS_DIR_NAME": ["file", "image_assets_dir_name"],
     "PASTED_IMAGE_FORMAT": ["file", "pasted_image_format"],
@@ -215,6 +241,114 @@ class Config:
     @property
     def search_case_insensitive(self) -> bool:
         return self._get_env("SEARCH_CASE_INSENSITIVE", True)
+
+    @property
+    def search_enable_pinyin(self) -> bool:
+        return self._get_env("SEARCH_ENABLE_PINYIN", True)
+
+    @property
+    def search_enable_initials(self) -> bool:
+        return self._get_env("SEARCH_ENABLE_INITIALS", True)
+
+    @property
+    def search_enable_fuzzy(self) -> bool:
+        return self._get_env("SEARCH_ENABLE_FUZZY", True)
+
+    @property
+    def search_fuzzy_threshold(self) -> int:
+        return int(self._get_env("SEARCH_FUZZY_THRESHOLD", "60"))
+
+    @property
+    def search_fuzzy_mode(self) -> str:
+        return self._get_env("SEARCH_FUZZY_MODE", "balanced")
+
+    @property
+    def search_first_paint_results(self) -> int:
+        return int(self._get_env("SEARCH_FIRST_PAINT_RESULTS", "30"))
+
+    # ============ 语义搜索配置 ============
+    @property
+    def semantic_search_enabled(self) -> bool:
+        return self._get_env("SEMANTIC_SEARCH_ENABLED", False)
+
+    @property
+    def semantic_search_provider(self) -> str:
+        return self._get_env("SEMANTIC_SEARCH_PROVIDER", "api")
+
+    @property
+    def semantic_search_local_model(self) -> str:
+        return self._get_env("SEMANTIC_SEARCH_LOCAL_MODEL", "BAAI/bge-small-zh-v1.5")
+
+    @property
+    def semantic_search_api_base_url(self) -> str:
+        return self._get_env("SEMANTIC_SEARCH_API_BASE_URL", "")
+
+    @property
+    def semantic_search_api_key(self) -> str:
+        return self._get_env("SEMANTIC_SEARCH_API_KEY", "")
+
+    @property
+    def semantic_search_api_model(self) -> str:
+        return self._get_env("SEMANTIC_SEARCH_API_MODEL", "text-embedding-3-small")
+
+    @property
+    def semantic_search_top_k(self) -> int:
+        return int(self._get_env("SEMANTIC_SEARCH_TOP_K", "20"))
+
+    @property
+    def semantic_search_min_score(self) -> float:
+        return float(self._get_env("SEMANTIC_SEARCH_MIN_SCORE", "0.35"))
+
+    @property
+    def semantic_search_index_on_startup(self) -> bool:
+        return self._get_env("SEMANTIC_SEARCH_INDEX_ON_STARTUP", False)
+
+    @property
+    def semantic_search_auto_reindex(self) -> bool:
+        return self._get_env("SEMANTIC_SEARCH_AUTO_REINDEX", True)
+
+    # ============ 知识库配置 ============
+    @property
+    def knowledge_base_dir(self) -> Path:
+        path = self._get_env("KNOWLEDGE_BASE_DIR", "./.prompt_anywhere")
+        return self.data_dir / path
+
+    @property
+    def knowledge_base_auto_sync(self) -> bool:
+        return self._get_env("KNOWLEDGE_BASE_AUTO_SYNC", True)
+
+    # ============ AI模板助手配置 ============
+    @property
+    def ai_template_enabled(self) -> bool:
+        return self._get_env("AI_TEMPLATE_ENABLED", False)
+
+    @property
+    def ai_template_provider(self) -> str:
+        return self._get_env("AI_TEMPLATE_PROVIDER", "openai_compatible")
+
+    @property
+    def ai_template_base_url(self) -> str:
+        return self._get_env("AI_TEMPLATE_BASE_URL", "")
+
+    @property
+    def ai_template_api_key(self) -> str:
+        return self._get_env("AI_TEMPLATE_API_KEY", "")
+
+    @property
+    def ai_template_model(self) -> str:
+        return self._get_env("AI_TEMPLATE_MODEL", "")
+
+    @property
+    def ai_template_temperature(self) -> float:
+        return float(self._get_env("AI_TEMPLATE_TEMPERATURE", "0.2"))
+
+    @property
+    def ai_template_timeout_seconds(self) -> int:
+        return int(self._get_env("AI_TEMPLATE_TIMEOUT_SECONDS", "30"))
+
+    @property
+    def ai_template_detection_mode(self) -> str:
+        return self._get_env("AI_TEMPLATE_DETECTION_MODE", "hybrid")
 
     # ============ 复制配置 ============
     # ============ Esc 配置 ============

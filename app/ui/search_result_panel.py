@@ -1,6 +1,6 @@
 import re
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -30,6 +30,7 @@ class SearchResultPanel(QWidget):
         super().__init__(parent)
         self._results: list[SearchResult] = []
         self._keyword = ""
+        self._remaining_results: list[SearchResult] = []
         self._setup_ui()
 
     def _setup_ui(self):
@@ -77,14 +78,37 @@ class SearchResultPanel(QWidget):
         self._results = results
         self._keyword = keyword
         self.result_list.clear()
-        for result in results:
-            item = QListWidgetItem()
-            item.setText(result.filename)
-            item.setToolTip(f"{result.category or '根目录'} / {result.filename}")
-            item.setData(Qt.UserRole, result)
-            self.result_list.addItem(item)
+
+        first_paint = config.search_first_paint_results
+        initial_batch = results[:first_paint]
+        self._remaining_results = results[first_paint:]
+
+        for result in initial_batch:
+            self._add_result_item(result)
+
+        if self._remaining_results:
+            QTimer.singleShot(50, self._load_remaining_results)
+
         if self.result_list.count() > 0:
             self.result_list.setCurrentRow(0)
+
+    def _add_result_item(self, result: SearchResult):
+        item = QListWidgetItem()
+        item.setText(result.filename)
+        item.setToolTip(f"{result.category or '根目录'} / {result.filename}")
+        item.setData(Qt.UserRole, result)
+        self.result_list.addItem(item)
+
+    def _load_remaining_results(self):
+        if not self._remaining_results:
+            return
+        batch_size = 20
+        batch = self._remaining_results[:batch_size]
+        self._remaining_results = self._remaining_results[batch_size:]
+        for result in batch:
+            self._add_result_item(result)
+        if self._remaining_results:
+            QTimer.singleShot(30, self._load_remaining_results)
 
     def clear_results(self):
         self._results = []

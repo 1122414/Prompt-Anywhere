@@ -49,7 +49,7 @@ class EmbeddingService:
         payload = {"model": model, "input": texts}
 
         try:
-            with httpx.Client(timeout=60.0) as client:
+            with httpx.Client(timeout=10.0) as client:
                 resp = client.post(url, json=payload, headers=self._get_headers())
                 resp.raise_for_status()
                 data = resp.json()

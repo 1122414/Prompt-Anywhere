@@ -1,5 +1,7 @@
 # Prompt Anywhere
 
+[![Release](https://img.shields.io/github/v/release/1122414/Prompt-Anywhere)](https://github.com/1122414/Prompt-Anywhere/releases)
+
 全局可用的桌面提示词管理工具，支持快捷键呼出、搜索、复制、模板变量、Composer组合等功能。
 
 ## 功能特性
@@ -35,7 +37,11 @@
 
 ## 快速开始
 
-### 方式一：直接运行（需要Python环境）
+### 方式一：下载便携版（推荐）
+
+从 [GitHub Releases](https://github.com/1122414/Prompt-Anywhere/releases) 下载 `PromptAnywhere-vX.X.X-portable.zip`，解压后运行 `PromptAnywhere.exe`。
+
+### 方式二：直接运行（需要Python环境）
 
 ```bash
 # 安装依赖
@@ -45,17 +51,17 @@ pip install -r requirements.txt
 python -m app.main
 ```
 
-### 方式二：Windows便携版
+### 方式三：自行打包Windows便携版
 
 ```bash
-# 打包便携版
+# 打包
 scripts\build_windows_portable.bat
 
 # 运行
 dist\PromptAnywhere\PromptAnywhere.exe
 ```
 
-### 方式三：Docker运行
+### 方式四：Docker运行
 
 ```bash
 # 一键启动
@@ -114,12 +120,13 @@ Prompt-Anywhere/
 
 ## 快捷键
 
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+Alt+P` | 呼出快速搜索窗口 |
-| `Ctrl+F` | 聚焦搜索框 |
-| `Ctrl+S` | 保存当前提示词 |
-| `Esc` | 隐藏窗口 |
+| 快捷键 | 功能 | 可自定义 |
+|--------|------|----------|
+| `Ctrl+Alt+P` | 呼出/隐藏快速搜索窗口 | 是 |
+| `Ctrl+Alt+M` | 显示/隐藏主窗口 | 是 |
+| `Ctrl+F` | 聚焦搜索框 | 否 |
+| `Ctrl+S` | 保存当前提示词 | 否 |
+| `Esc` | 隐藏窗口 | 否 |
 
 ## 命令参考
 
@@ -128,8 +135,7 @@ Prompt-Anywhere/
 python -m app.main
 
 # 运行测试
-python tests/test_product_services.py
-python tests/test_template_composer.py
+python tests/test_functional.py
 
 # Docker操作
 scripts\docker_start.bat      # 启动
@@ -144,7 +150,7 @@ scripts\build_windows_portable.bat
 
 - **Python 3.11+**
 - **PySide6** - Qt GUI框架
-- **pynput** - 全局快捷键
+- **Windows RegisterHotKey** - 全局快捷键（Win32 API）
 - **markdown** + **Pygments** - Markdown渲染和代码高亮
 - **PyYAML** - 配置文件解析
 - **python-dotenv** - 环境变量管理
@@ -164,8 +170,7 @@ scripts\build_windows_portable.bat
 
 ```bash
 # 运行所有测试
-python tests/test_product_services.py
-python tests/test_template_composer.py
+python tests/test_functional.py
 ```
 
 ## 许可证

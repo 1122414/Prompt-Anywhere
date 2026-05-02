@@ -14,6 +14,7 @@ from app.services.clipboard_service import clipboard_service
 from app.services.file_service import PromptFile
 from app.services.search_service import SearchResult, search_service
 from app.services.state_service import state_service
+from app.services.usage_service import usage_service
 from app.ui.search_result_panel import SearchResultPanel
 
 
@@ -118,6 +119,7 @@ class QuickWindow(QMainWindow):
             content = prompt.read_content()
             if clipboard_service.copy_text(content):
                 state_service.add_recent_file(result.path)
+                usage_service.record_copy(result.path)
                 if config.copy_auto_hide:
                     QTimer.singleShot(config.copy_hide_delay_ms, self.hide)
 

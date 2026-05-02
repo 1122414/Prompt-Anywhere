@@ -300,6 +300,12 @@ class TestAITemplateService(unittest.TestCase):
         self.assertIn("{{", result)
         self.assertIn("}}", result)
 
+    def test_no_duplicate_var_names(self):
+        content = "链接1: https://a.com 链接2: https://b.com"
+        vars = self.service.detect_variables_rule(content)
+        names = [v.name for v in vars]
+        self.assertEqual(len(names), len(set(names)))
+
 
 def run_tests():
     loader = unittest.TestLoader()

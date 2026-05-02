@@ -52,6 +52,10 @@ class EditorPanel(QWidget):
 
         toolbar.addStretch()
 
+        self.ai_template_btn = QPushButton("智能模板化")
+        self.ai_template_btn.clicked.connect(self._on_ai_template)
+        toolbar.addWidget(self.ai_template_btn)
+
         self.copy_btn = QPushButton("复制")
         self.copy_btn.clicked.connect(self.copy_requested.emit)
         toolbar.addWidget(self.copy_btn)
@@ -272,6 +276,20 @@ class EditorPanel(QWidget):
         from app.ui.dialogs import TemplateDialog
         dialog = TemplateDialog(self, filename=filename, variables=variables, content=content)
         dialog.exec()
+
+    def _on_ai_template(self):
+        content = self.editor.toPlainText()
+        if not content.strip():
+            QMessageBox.information(self, "提示", "当前没有内容可供模板化。")
+            return
+        from app.ui.ai_template_dialog import AITemplateDialog
+        dialog = AITemplateDialog(content, parent=self)
+        dialog.template_applied.connect(self._apply_ai_template)
+        dialog.exec()
+
+    def _apply_ai_template(self, templated_content: str, variables: list):
+        self.editor.setPlainText(templated_content)
+        self._on_text_changed()
 
     def check_unsaved(self) -> str:
         if self._is_modified:

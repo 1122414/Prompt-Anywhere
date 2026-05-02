@@ -1,7 +1,7 @@
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.config import config
 from app.providers.llm.base import LLMProvider
@@ -45,7 +45,8 @@ class AITemplateService:
 
     def detect_variables_rule(self, content: str) -> List[TemplateVariable]:
         variables = []
-        seen = set()
+        seen_values = set()
+        used_names = set()
 
         rules = [
             (r"https?://[^\s\"'\)]+", "链接"),
@@ -60,9 +61,10 @@ class AITemplateService:
         for pattern, default_name in rules:
             for match in re.finditer(pattern, content):
                 value = match.group(1) if match.lastindex else match.group(0)
-                if value and value not in seen:
-                    seen.add(value)
-                    var_name = self._generate_var_name(default_name, seen)
+                if value and value not in seen_values:
+                    seen_values.add(value)
+                    var_name = self._generate_var_name(default_name, used_names)
+                    used_names.add(var_name)
                     variables.append(TemplateVariable(
                         name=var_name,
                         var_type=self._infer_type(pattern, value),
@@ -132,12 +134,12 @@ class AITemplateService:
                 result = result.replace(var.default, token, 1)
         return result
 
-    def _generate_var_name(self, base: str, seen: set) -> str:
-        if base not in seen:
+    def _generate_var_name(self, base: str, used_names: set) -> str:
+        if base not in used_names:
             return base
         for i in range(2, 20):
             name = f"{base}{i}"
-            if name not in seen:
+            if name not in used_names:
                 return name
         return base
 

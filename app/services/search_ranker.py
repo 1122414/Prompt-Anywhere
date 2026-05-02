@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List
+
 
 from app.config import config
 from app.services.state_service import state_service

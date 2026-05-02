@@ -244,68 +244,68 @@ class Config:
 
     @property
     def search_enable_pinyin(self) -> bool:
-        return self._get_env("SEARCH_ENABLE_PINYIN", True)
+        return self._get_pref("search_enable_pinyin", self._get_env("SEARCH_ENABLE_PINYIN", True))
 
     @property
     def search_enable_initials(self) -> bool:
-        return self._get_env("SEARCH_ENABLE_INITIALS", True)
+        return self._get_pref("search_enable_initials", self._get_env("SEARCH_ENABLE_INITIALS", True))
 
     @property
     def search_enable_fuzzy(self) -> bool:
-        return self._get_env("SEARCH_ENABLE_FUZZY", True)
+        return self._get_pref("search_enable_fuzzy", self._get_env("SEARCH_ENABLE_FUZZY", True))
 
     @property
     def search_fuzzy_threshold(self) -> int:
-        return int(self._get_env("SEARCH_FUZZY_THRESHOLD", "60"))
+        return int(self._get_pref("search_fuzzy_threshold", self._get_env("SEARCH_FUZZY_THRESHOLD", "60")))
 
     @property
     def search_fuzzy_mode(self) -> str:
-        return self._get_env("SEARCH_FUZZY_MODE", "balanced")
+        return self._get_pref("search_fuzzy_mode", self._get_env("SEARCH_FUZZY_MODE", "balanced"))
 
     @property
     def search_first_paint_results(self) -> int:
-        return int(self._get_env("SEARCH_FIRST_PAINT_RESULTS", "30"))
+        return int(self._get_pref("search_first_paint_results", self._get_env("SEARCH_FIRST_PAINT_RESULTS", "30")))
 
     # ============ 语义搜索配置 ============
     @property
     def semantic_search_enabled(self) -> bool:
-        return self._get_env("SEMANTIC_SEARCH_ENABLED", False)
+        return self._get_pref("semantic_search_enabled", self._get_env("SEMANTIC_SEARCH_ENABLED", False))
 
     @property
     def semantic_search_provider(self) -> str:
-        return self._get_env("SEMANTIC_SEARCH_PROVIDER", "api")
+        return self._get_pref("semantic_search_provider", self._get_env("SEMANTIC_SEARCH_PROVIDER", "api"))
 
     @property
     def semantic_search_local_model(self) -> str:
-        return self._get_env("SEMANTIC_SEARCH_LOCAL_MODEL", "BAAI/bge-small-zh-v1.5")
+        return self._get_pref("semantic_search_local_model", self._get_env("SEMANTIC_SEARCH_LOCAL_MODEL", "BAAI/bge-small-zh-v1.5"))
 
     @property
     def semantic_search_api_base_url(self) -> str:
-        return self._get_env("SEMANTIC_SEARCH_API_BASE_URL", "")
+        return self._get_pref("semantic_search_api_base_url", self._get_env("SEMANTIC_SEARCH_API_BASE_URL", ""))
 
     @property
     def semantic_search_api_key(self) -> str:
-        return self._get_env("SEMANTIC_SEARCH_API_KEY", "")
+        return self._get_pref("semantic_search_api_key", self._get_env("SEMANTIC_SEARCH_API_KEY", ""))
 
     @property
     def semantic_search_api_model(self) -> str:
-        return self._get_env("SEMANTIC_SEARCH_API_MODEL", "text-embedding-3-small")
+        return self._get_pref("semantic_search_api_model", self._get_env("SEMANTIC_SEARCH_API_MODEL", "text-embedding-3-small"))
 
     @property
     def semantic_search_top_k(self) -> int:
-        return int(self._get_env("SEMANTIC_SEARCH_TOP_K", "20"))
+        return int(self._get_pref("semantic_search_top_k", self._get_env("SEMANTIC_SEARCH_TOP_K", "20")))
 
     @property
     def semantic_search_min_score(self) -> float:
-        return float(self._get_env("SEMANTIC_SEARCH_MIN_SCORE", "0.35"))
+        return float(self._get_pref("semantic_search_min_score", self._get_env("SEMANTIC_SEARCH_MIN_SCORE", "0.35")))
 
     @property
     def semantic_search_index_on_startup(self) -> bool:
-        return self._get_env("SEMANTIC_SEARCH_INDEX_ON_STARTUP", False)
+        return self._get_pref("semantic_search_index_on_startup", self._get_env("SEMANTIC_SEARCH_INDEX_ON_STARTUP", False))
 
     @property
     def semantic_search_auto_reindex(self) -> bool:
-        return self._get_env("SEMANTIC_SEARCH_AUTO_REINDEX", True)
+        return self._get_pref("semantic_search_auto_reindex", self._get_env("SEMANTIC_SEARCH_AUTO_REINDEX", True))
 
     # ============ 知识库配置 ============
     @property
@@ -320,35 +320,35 @@ class Config:
     # ============ AI模板助手配置 ============
     @property
     def ai_template_enabled(self) -> bool:
-        return self._get_env("AI_TEMPLATE_ENABLED", False)
+        return self._get_pref("ai_template_enabled", self._get_env("AI_TEMPLATE_ENABLED", False))
 
     @property
     def ai_template_provider(self) -> str:
-        return self._get_env("AI_TEMPLATE_PROVIDER", "openai_compatible")
+        return self._get_pref("ai_template_provider", self._get_env("AI_TEMPLATE_PROVIDER", "openai_compatible"))
 
     @property
     def ai_template_base_url(self) -> str:
-        return self._get_env("AI_TEMPLATE_BASE_URL", "")
+        return self._get_pref("ai_template_base_url", self._get_env("AI_TEMPLATE_BASE_URL", ""))
 
     @property
     def ai_template_api_key(self) -> str:
-        return self._get_env("AI_TEMPLATE_API_KEY", "")
+        return self._get_pref("ai_template_api_key", self._get_env("AI_TEMPLATE_API_KEY", ""))
 
     @property
     def ai_template_model(self) -> str:
-        return self._get_env("AI_TEMPLATE_MODEL", "")
+        return self._get_pref("ai_template_model", self._get_env("AI_TEMPLATE_MODEL", ""))
 
     @property
     def ai_template_temperature(self) -> float:
-        return float(self._get_env("AI_TEMPLATE_TEMPERATURE", "0.2"))
+        return float(self._get_pref("ai_template_temperature", self._get_env("AI_TEMPLATE_TEMPERATURE", "0.2")))
 
     @property
     def ai_template_timeout_seconds(self) -> int:
-        return int(self._get_env("AI_TEMPLATE_TIMEOUT_SECONDS", "30"))
+        return int(self._get_pref("ai_template_timeout_seconds", self._get_env("AI_TEMPLATE_TIMEOUT_SECONDS", "30")))
 
     @property
     def ai_template_detection_mode(self) -> str:
-        return self._get_env("AI_TEMPLATE_DETECTION_MODE", "hybrid")
+        return self._get_pref("ai_template_detection_mode", self._get_env("AI_TEMPLATE_DETECTION_MODE", "hybrid"))
 
     # ============ 复制配置 ============
     # ============ Esc 配置 ============

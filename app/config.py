@@ -1,11 +1,19 @@
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
 import yaml
 from dotenv import load_dotenv
 
-load_dotenv()
+
+def _base_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).parent.parent
+
+
+load_dotenv(_base_path() / ".env")
 
 _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "APP_NAME": ["app", "name"],
@@ -75,7 +83,7 @@ class Config:
         return cls._instance
 
     def _load_config(self) -> None:
-        config_path = Path(__file__).parent.parent / "config.yaml"
+        config_path = _base_path() / "config.yaml"
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 self._config_data = yaml.safe_load(f) or {}
@@ -344,6 +352,8 @@ class Config:
     # ============ 内置模板配置 ============
     @property
     def builtin_template_dir(self) -> Path:
+        if getattr(sys, "frozen", False):
+            return Path(sys._MEIPASS) / "builtin_templates"
         path = self._get_env("BUILTIN_TEMPLATE_DIR", "./builtin_templates")
         return Path(path).resolve()
 
@@ -362,7 +372,7 @@ class Config:
         if "folder_icons" not in self._config_data["ui"]:
             self._config_data["ui"]["folder_icons"] = {}
         self._config_data["ui"]["folder_icons"][folder_path] = icon_key
-        config_path = Path(__file__).parent.parent / "config.yaml"
+        config_path = _base_path() / "config.yaml"
         try:
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(self._config_data, f, allow_unicode=True, sort_keys=False)
@@ -382,7 +392,7 @@ class Config:
             else:
                 updated[key] = value
         self._config_data["ui"]["folder_icons"] = updated
-        config_path = Path(__file__).parent.parent / "config.yaml"
+        config_path = _base_path() / "config.yaml"
         try:
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(self._config_data, f, allow_unicode=True, sort_keys=False)

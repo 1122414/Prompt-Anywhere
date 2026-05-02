@@ -13,7 +13,7 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 echo Building with PyInstaller...
-pyinstaller --name "PromptAnywhere" --windowed --onedir --add-data "builtin_templates;builtin_templates" --add-data ".env;.env" --add-data "config.yaml;config.yaml" app/main.py
+pyinstaller --name "PromptAnywhere" --windowed --onedir --add-data "builtin_templates;builtin_templates" --add-data ".env;." --add-data "config.yaml;." app/main.py
 
 echo Creating directories...
 if not exist "dist\PromptAnywhere\data" mkdir "dist\PromptAnywhere\data"

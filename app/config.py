@@ -224,11 +224,11 @@ class Config:
     # ============ 搜索配置 ============
     @property
     def search_debounce_ms(self) -> int:
-        return int(self._get_env("SEARCH_DEBOUNCE_MS", "180"))
+        return int(self._get_pref("search_debounce_ms", self._get_env("SEARCH_DEBOUNCE_MS", "180")))
 
     @property
     def search_max_results(self) -> int:
-        return int(self._get_env("SEARCH_MAX_RESULTS", "100"))
+        return int(self._get_pref("search_max_results", self._get_env("SEARCH_MAX_RESULTS", "100")))
 
     @property
     def search_snippet_radius(self) -> int:
@@ -389,7 +389,7 @@ class Config:
 
     @property
     def max_recent_files(self) -> int:
-        val = int(self._get_env("MAX_RECENT_FILES", "10"))
+        val = int(self._get_pref("max_recent_files", self._get_env("MAX_RECENT_FILES", "10")))
         return max(1, min(val, 20))
 
     @property

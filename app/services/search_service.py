@@ -305,6 +305,7 @@ class SearchService:
         search_id = self._current_search_id
 
         self._worker = SearchWorker(search_id, keyword, self._index.get_items(), case_insensitive)
+        self._worker.setParent(None)
         return search_id, self._worker
 
     def get_current_search_id(self) -> int:

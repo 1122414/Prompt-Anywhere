@@ -502,7 +502,9 @@ class MainWindow(QMainWindow):
             self._hide_search_results()
             return
         search_id, worker = search_service.search_async(keyword, config.search_case_insensitive)
+        worker.setParent(None)
         worker.results_ready.connect(self._on_search_results_ready)
+        worker.finished.connect(worker.deleteLater)
         worker.start()
         self._search_worker = worker
 

@@ -254,7 +254,7 @@ class SettingsDialog(QDialog):
         tab = QWidget()
         layout = QFormLayout(tab)
 
-        self.semantic_search_enabled_cb = QCheckBox("启用语义搜索")
+        self.semantic_search_enabled_cb = QCheckBox("启用语义搜索（实验性功能）")
         layout.addRow(self.semantic_search_enabled_cb)
 
         self.semantic_search_provider_input = QLineEdit()

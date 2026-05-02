@@ -1,6 +1,6 @@
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 
 from app.config import config

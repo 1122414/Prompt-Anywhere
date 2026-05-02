@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List
+from typing import Dict
 
 from pypinyin import Style, lazy_pinyin
 

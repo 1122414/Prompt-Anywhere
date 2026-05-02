@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List
 
 from app.config import config
 from app.services.embedding_service import embedding_service

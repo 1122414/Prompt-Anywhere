@@ -3,7 +3,6 @@ import logging
 from typing import Dict, List, Set
 
 from app.config import config
-from app.services.knowledge_base_service import knowledge_base_service
 
 logger = logging.getLogger(__name__)
 

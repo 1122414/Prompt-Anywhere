@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import httpx
 
@@ -8,6 +8,21 @@ from app.config import config
 from app.providers.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_json_response(content: str):
+    if not content:
+        return None
+    try:
+        json_str = content
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0]
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0]
+        return json.loads(json_str.strip())
+    except Exception as e:
+        logger.warning(f"Failed to parse JSON response: {e}")
+        return None
 
 
 class OpenAICompatibleProvider(LLMProvider):
@@ -46,20 +61,8 @@ class OpenAICompatibleProvider(LLMProvider):
             logger.warning(f"OpenAI-compatible API request failed: {e}")
             return None
 
-    def chat_json(self, messages: List[Dict[str, str]], temperature: float = 0.2, timeout: int = 30) -> Optional[Dict[str, Any]]:
-        content = self.chat(messages, temperature, timeout)
-        if not content:
-            return None
-        try:
-            json_str = content
-            if "```json" in json_str:
-                json_str = json_str.split("```json")[1].split("```")[0]
-            elif "```" in json_str:
-                json_str = json_str.split("```")[1].split("```")[0]
-            return json.loads(json_str.strip())
-        except Exception as e:
-            logger.warning(f"Failed to parse JSON response: {e}")
-            return None
+    def chat_json(self, messages: List[Dict[str, str]], temperature: float = 0.2, timeout: int = 30):
+        return _parse_json_response(self.chat(messages, temperature, timeout))
 
 
 class OllamaProvider(LLMProvider):
@@ -92,17 +95,5 @@ class OllamaProvider(LLMProvider):
             logger.warning(f"Ollama API request failed: {e}")
             return None
 
-    def chat_json(self, messages: List[Dict[str, str]], temperature: float = 0.2, timeout: int = 30) -> Optional[Dict[str, Any]]:
-        content = self.chat(messages, temperature, timeout)
-        if not content:
-            return None
-        try:
-            json_str = content
-            if "```json" in json_str:
-                json_str = json_str.split("```json")[1].split("```")[0]
-            elif "```" in json_str:
-                json_str = json_str.split("```")[1].split("```")[0]
-            return json.loads(json_str.strip())
-        except Exception as e:
-            logger.warning(f"Failed to parse JSON response: {e}")
-            return None
+    def chat_json(self, messages: List[Dict[str, str]], temperature: float = 0.2, timeout: int = 30):
+        return _parse_json_response(self.chat(messages, temperature, timeout))

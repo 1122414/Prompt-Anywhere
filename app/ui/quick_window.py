@@ -24,6 +24,8 @@ class QuickWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{config.app_name} - 快速模式")
+        from app.utils.icon_utils import create_app_icon
+        self.setWindowIcon(create_app_icon())
         self.setMinimumSize(500, 400)
         self.resize(600, 450)
 

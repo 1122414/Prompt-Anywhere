@@ -79,6 +79,9 @@ class SettingsDialog(QDialog):
         self.esc_hide_cb = QCheckBox("Esc 隐藏窗口")
         layout.addRow(self.esc_hide_cb)
 
+        self.start_with_windows_cb = QCheckBox("开机自动启动")
+        layout.addRow(self.start_with_windows_cb)
+
         return tab
 
     def _create_paths_tab(self):
@@ -369,6 +372,10 @@ class SettingsDialog(QDialog):
         self.copy_hide_delay_spin.setValue(config.copy_hide_delay_ms)
         self.esc_hide_cb.setChecked(config.esc_hide_enabled)
 
+        self.start_with_windows_cb.setChecked(
+            config_service.get("behavior.start_with_windows", False)
+        )
+
         self.data_dir_input.setText(str(config.data_dir))
         self.export_dir_input.setText(str(config.export_dir))
         self.backup_dir_input.setText(
@@ -450,6 +457,12 @@ class SettingsDialog(QDialog):
         state_service.set_preference("copy_auto_hide", self.copy_auto_hide_cb.isChecked())
         state_service.set_preference("copy_hide_delay_ms", self.copy_hide_delay_spin.value())
         state_service.set_preference("esc_hide_enabled", self.esc_hide_cb.isChecked())
+
+        start_with_windows = self.start_with_windows_cb.isChecked()
+        config_service.set("behavior.start_with_windows", start_with_windows)
+        from app.services.autostart_service import autostart_service
+        if not autostart_service.set_autostart(start_with_windows):
+            logger.warning("Failed to apply autostart setting")
 
         config_service.set("storage.data_dir", self.data_dir_input.text())
         config_service.set("storage.export_dir", self.export_dir_input.text())

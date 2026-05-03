@@ -1,6 +1,7 @@
 import ctypes
 import ctypes.wintypes
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -124,6 +125,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(config.app_name)
+        from app.utils.icon_utils import create_app_icon
+        self.setWindowIcon(create_app_icon())
         self.setMinimumSize(600, 400)
 
         window_state = state_service.get_window_state()
@@ -627,10 +630,12 @@ class MainWindow(QMainWindow):
             )
             if reply == QMessageBox.Yes:
                 rel = prompt.path.relative_to(config.data_dir).as_posix()
+                self._skip_watcher = True
                 if file_service.delete_prompt(prompt):
                     search_service.remove_index_file(rel)
                     self.editor_panel.load_prompt(None)
                     self.tree_panel.remove_prompt_item(prompt)
+                self._skip_watcher = False
 
     def _open_data_dir(self):
         try:
@@ -674,9 +679,21 @@ class MainWindow(QMainWindow):
                 current_path = current.rel_path.as_posix()
                 if current_path == folder_path or current_path.startswith(folder_path + "/"):
                     self.editor_panel.load_prompt(None)
+            self._remove_watched_dir(folder_path)
+            self._skip_watcher = True
             if file_service.delete_folder(folder_path):
                 search_service.rebuild_index()
                 self.tree_panel.remove_folder_item(folder_path)
+            self._skip_watcher = False
+
+    def _remove_watched_dir(self, rel_path: str):
+        if not hasattr(self, "file_watcher"):
+            return
+        target_dir = str(config.data_dir / rel_path)
+        watched = self.file_watcher.directories()
+        to_remove = [p for p in watched if p == target_dir or p.startswith(target_dir + os.sep)]
+        if to_remove:
+            self.file_watcher.removePaths(to_remove)
 
     def _on_rename_prompt(self, prompt: PromptFile):
         from PySide6.QtWidgets import QInputDialog
@@ -704,9 +721,11 @@ class MainWindow(QMainWindow):
             if current and current.path == prompt.path:
                 self.editor_panel.load_prompt(None)
             rel = prompt.path.relative_to(config.data_dir).as_posix()
+            self._skip_watcher = True
             if file_service.delete_prompt(prompt):
                 search_service.remove_index_file(rel)
                 self.tree_panel.remove_prompt_item(prompt)
+            self._skip_watcher = False
 
     def _setup_file_watcher(self):
         if config.enable_file_watcher:

@@ -14,10 +14,17 @@ def _safe_delete(path: Path):
         from send2trash import send2trash
         send2trash(str(path))
     except ImportError:
-        if path.is_file():
-            os.remove(path)
-        elif path.is_dir():
-            shutil.rmtree(path)
+        _force_delete(path)
+    except Exception as e:
+        logger.warning(f"send2trash failed for '{path}': {e}, falling back to direct delete")
+        _force_delete(path)
+
+
+def _force_delete(path: Path):
+    if path.is_file():
+        os.remove(path)
+    elif path.is_dir():
+        shutil.rmtree(path)
 
 
 class PromptFile:

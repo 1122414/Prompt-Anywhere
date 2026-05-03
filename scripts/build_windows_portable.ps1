@@ -14,12 +14,17 @@ Write-Host "Installing dependencies..." -ForegroundColor Yellow
 pip install -r requirements.txt
 pip install pyinstaller
 
+# Generate icon
+Write-Host "Generating icon..." -ForegroundColor Yellow
+python scripts/generate_icon.py
+
 # Build
 Write-Host "Building with PyInstaller..." -ForegroundColor Yellow
 pyinstaller `
     --name "PromptAnywhere" `
     --windowed `
     --onedir `
+    --icon "assets/app_icon.ico" `
     --add-data "builtin_templates;builtin_templates" `
     --add-data ".env;.env" `
     --add-data "config.yaml;config.yaml" `

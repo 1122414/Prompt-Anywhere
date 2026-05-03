@@ -39,6 +39,12 @@ def _initialize_app():
             except Exception as e:
                 logging.getLogger(__name__).warning(f"Auto backup failed: {e}")
 
+    start_with_windows = config_service.get("behavior.start_with_windows", False)
+    if start_with_windows:
+        from app.services.autostart_service import autostart_service
+        if not autostart_service.is_autostart_enabled():
+            autostart_service.set_autostart(True)
+
 
 def main():
     _setup_logging()
@@ -48,6 +54,8 @@ def main():
     app.setApplicationName(config.app_name)
     app.setApplicationVersion(config.app_version)
     app.setQuitOnLastWindowClosed(False)
+    from app.utils.icon_utils import create_app_icon
+    app.setWindowIcon(create_app_icon())
 
     main_window = MainWindow()
     quick_window = QuickWindow()

@@ -85,10 +85,7 @@ class AITemplateDialog(QDialog):
         layout.addWidget(buttons)
 
     def _detect_variables(self):
-        if not config.ai_template_enabled:
-            self._variables = ai_template_service.detect_variables_rule(self._original_content)
-        else:
-            self._variables = ai_template_service.detect_variables(self._original_content)
+        self._variables = ai_template_service.detect_variables_rule(self._original_content)
         self._update_ui()
 
     def _detect_rule_only(self):
@@ -106,7 +103,8 @@ class AITemplateDialog(QDialog):
         self._update_ui()
 
     def _detect_hybrid(self):
-        self._detect_variables()
+        self._variables = ai_template_service.detect_variables(self._original_content)
+        self._update_ui()
 
     def _update_ui(self):
         self.var_table.setRowCount(len(self._variables))

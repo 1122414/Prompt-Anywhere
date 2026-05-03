@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-04-29
-**Commit:** 82ec309
+**Generated:** 2026-05-03
+**Commit:** 68e7af3
 **Branch:** main
 
 ## OVERVIEW
@@ -16,13 +16,12 @@ Prompt-Anywhere/
 │   ├── main.py          # Entry point: QApplication + MainWindow + QuickWindow
 │   ├── config.py        # Singleton Config: YAML + env var override
 │   ├── constants.py     # App-wide constants and UI messages (Chinese)
-│   ├── ui/              # PySide6 widgets (windows, dialogs, panels)
-│   ├── services/        # Business logic (file, search, clipboard, state, export)
-│   ├── providers/       # Storage abstractions (ABC pattern, mostly stubs)
+│   ├── ui/              # PySide6 widgets → See app/ui/AGENTS.md
+│   ├── services/        # Business logic (25 files) → See app/services/AGENTS.md
+│   ├── providers/       # Storage abstractions (ABC + LLM) → See app/providers/AGENTS.md
 │   └── utils/           # Helpers (markdown, syntax highlighting, images)
 ├── tests/               # unittest-based functional tests
 ├── data/                # User prompts (gitignored)
-├── plan_/               # Planning docs (Chinese, date-based subdirs)
 ├── config.yaml          # App config (hotkey, UI, storage, model)
 ├── requirements.txt     # PySide6, pynput, markdown, PyYAML, dotenv, send2trash
 └── app_state.json       # Runtime state (gitignored)
@@ -38,6 +37,10 @@ Prompt-Anywhere/
 | Add file type support | `config.yaml` → `supported_extensions` | Default: `.md,.txt` |
 | Modify hotkey | `config.yaml` → `app.hotkey` | Uses pynput GlobalHotKeys |
 | Run tests | `python tests/test_functional.py` | unittest, no pytest config |
+| LLM/provider integration | `app/providers/llm/` | OpenAI-compatible + Ollama |
+| Template variables | `app/services/template_service.py` | `{{变量名}}` extraction + generation |
+| Search/index logic | `app/services/search_service.py` | QThread-based SearchWorker + SearchIndex |
+| Markdown rendering | `app/utils/markdown_utils.py` | markdown lib + syntax highlighting |
 
 ## CONVENTIONS
 
@@ -46,6 +49,7 @@ Prompt-Anywhere/
 - **Config priority (most properties)**: env var > YAML > hardcoded default
 - **Chinese UI**: All user-facing strings in `app/constants.py` are Chinese. Some inline strings in UI files.
 - **Logging**: `logging.getLogger(__name__)` per module, format: `%(asctime)s [%(levelname)s] %(name)s: %(message)s`
+- **Logger placement**: `logger = logging.getLogger(__name__)` at module level, between stdlib and third-party imports
 - **Path handling**: Use `pathlib.Path`, resolve relative to `config.data_dir`. Display with `.as_posix()` or `.replace("\\", "/")`
 - **Qt signals**: Use `Signal()` from PySide6.QtCore for inter-widget communication
 - **Imports**: Absolute only (`from app.config import config`). Deferred imports for circular deps or lazy loading.
@@ -53,6 +57,12 @@ Prompt-Anywhere/
 - **No docstrings**: Entire codebase has zero docstrings
 - **Type hints**: On public methods, absent on private
 - **Git commits**: Conventional Commits style (`fix:`, `feat:`, `chore:`), descriptions often Chinese
+- **Data containers**: `@dataclass` for lightweight data types (SearchResult, PromptFileIndexItem, FuzzyMatchResult)
+- **String formatting**: f-strings exclusively (no `.format()` or `%`)
+- **File I/O**: Always `encoding="utf-8"` explicit (never rely on system default)
+- **Naming**: `snake_case` modules/functions, `PascalCase` classes, `UPPER_SNAKE_CASE` constants, `_` prefix for private
+- **Error handling**: `except Exception as e:` with `logger.warning(f"...{e}")` — never bare `except:` 
+- **No linter/formatter configs**: Conventions enforced by discipline, not tooling
 
 ## ANTI-PATTERNS (THIS PROJECT)
 

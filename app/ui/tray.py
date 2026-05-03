@@ -22,10 +22,8 @@ class TrayManager(QSystemTrayIcon):
         self.activated.connect(self._on_activated)
 
     def _get_icon(self):
-        app = QApplication.instance()
-        if app:
-            return app.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
-        return QIcon()
+        from app.utils.icon_utils import create_app_icon
+        return create_app_icon(64)
 
     def _setup_menu(self):
         self.menu = QMenu()

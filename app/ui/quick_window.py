@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QLabel,
     QLineEdit,
     QMainWindow,
     QVBoxLayout,
@@ -13,6 +14,7 @@ from app.services.file_service import PromptFile
 from app.services.search_service import SearchResult
 from app.services.state_service import state_service
 from app.services.usage_service import usage_service
+from app.services.notification_service import notification_service
 from app.ui.search_mixin import SearchMixin
 from app.ui.search_result_panel import SearchResultPanel
 
@@ -49,6 +51,10 @@ class QuickWindow(QMainWindow, SearchMixin):
         self.search_result_panel.result_copy_requested.connect(self._on_result_copy)
         self.search_result_panel.escape_pressed.connect(self._on_escape)
         layout.addWidget(self.search_result_panel)
+
+        hint = QLabel("↑↓ 选择  |  Enter 复制并关闭  |  Shift+Enter 复制  |  Esc 关闭")
+        hint.setStyleSheet("color: #888; font-size: 11px; padding: 4px;")
+        layout.addWidget(hint)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -92,8 +98,19 @@ class QuickWindow(QMainWindow, SearchMixin):
             if clipboard_service.copy_text(content):
                 state_service.add_recent_file(result.path)
                 usage_service.record_copy(result.path)
+                notification_service.success(self, Messages.COPIED)
                 if config.copy_auto_hide:
                     QTimer.singleShot(config.copy_hide_delay_ms, self.hide)
+
+    def _copy_result_without_hide(self, result: SearchResult):
+        full_path = config.data_dir / result.path
+        if full_path.exists():
+            prompt = PromptFile(full_path)
+            content = prompt.read_content()
+            if clipboard_service.copy_text(content):
+                state_service.add_recent_file(result.path)
+                usage_service.record_copy(result.path)
+                notification_service.success(self, "已复制（窗口保持）")
 
     def _on_escape(self):
         if self.search_input.text():
@@ -113,7 +130,10 @@ class QuickWindow(QMainWindow, SearchMixin):
                 if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
                     result = self.search_result_panel.current_result()
                     if result:
-                        self._copy_result(result)
+                        if event.modifiers() & Qt.ShiftModifier:
+                            self._copy_result_without_hide(result)
+                        else:
+                            self._copy_result(result)
                     return True
             if event.key() == Qt.Key_Escape and config.esc_hide_enabled:
                 if self.search_input.text():

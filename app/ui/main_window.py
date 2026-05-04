@@ -35,6 +35,7 @@ from app.services.file_service import PromptFile, file_service
 from app.services.search_service import SearchResult, search_service
 from app.services.config_service import config_service
 from app.services.state_service import state_service
+from app.services.notification_service import notification_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
 from app.ui.search_mixin import SearchMixin
@@ -200,6 +201,10 @@ class MainWindow(QMainWindow, SearchMixin):
         self.import_btn.setMenu(self.import_menu)
         toolbar.addWidget(self.import_btn)
 
+        self.clipboard_create_btn = QPushButton("从剪贴板新建")
+        self.clipboard_create_btn.clicked.connect(self._on_create_from_clipboard)
+        toolbar.addWidget(self.clipboard_create_btn)
+
         self.template_menu = QMenu(self)
         if config.show_template_button:
             self.template_menu.addAction("使用模板", self._on_use_template_from_toolbar)
@@ -262,6 +267,10 @@ class MainWindow(QMainWindow, SearchMixin):
         self.search_popup.result_selected.connect(self._on_search_result_selected)
         self.search_popup.result_copy_requested.connect(self._on_search_result_copy)
         self.search_popup.escape_pressed.connect(self._on_search_escape)
+
+        self.statusBar().showMessage(
+            f"快捷键: {config.hotkey} 快速搜索 | Ctrl+F 搜索 | Ctrl+S 保存 | Esc 关闭", 0
+        )
 
     def _toggle_always_on_top(self):
         self._always_on_top = not self._always_on_top
@@ -518,6 +527,7 @@ class MainWindow(QMainWindow, SearchMixin):
             content = prompt.read_content()
             if clipboard_service.copy_text(content):
                 self.statusBar().showMessage(Messages.COPIED, 2000)
+                notification_service.success(self, Messages.COPIED)
                 state_service.add_recent_file(result.path)
                 self._on_copy_done()
 
@@ -528,6 +538,50 @@ class MainWindow(QMainWindow, SearchMixin):
     def _on_copy_done(self):
         if config.copy_auto_hide:
             QTimer.singleShot(config.copy_hide_delay_ms, self.hide)
+
+    def _on_create_from_clipboard(self):
+        clipboard = QApplication.clipboard()
+        text = clipboard.text()
+        if not text or not text.strip():
+            notification_service.warning(self, "剪贴板没有可用文本")
+            return
+        title = self._extract_title_from_text(text)
+        self._open_prompt_dialog_with_content(title, text)
+
+    def _extract_title_from_text(self, text: str) -> str:
+        import re
+        lines = text.strip().split("\n")
+        first = lines[0].strip() if lines else ""
+        first = re.sub(r"^#{1,6}\s*", "", first)
+        first = re.sub(r"^[\-\*\d+\.]\s*", "", first)
+        first = first.strip()
+        if len(first) > 60:
+            first = first[:60]
+        return first if len(first) >= 2 else "未命名 Prompt"
+
+    def _open_prompt_dialog_with_content(self, title: str, content: str):
+        current = self.tree_panel.get_selected_category()
+        default_category = current if current else ""
+        from PySide6.QtWidgets import QInputDialog
+        category, ok = QInputDialog.getText(
+            self, "从剪贴板新建", "分类（可选）:", text=default_category
+        )
+        if not ok:
+            return
+        name, ok = QInputDialog.getText(
+            self, "从剪贴板新建", "Prompt 名称:", text=title
+        )
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        cat = category.strip() if category else "未分类"
+        prompt = file_service.create_prompt(cat, name, ".md", content)
+        if prompt:
+            search_service.rebuild_index()
+            self.tree_panel.add_prompt_item(cat, name, prompt.path)
+            notification_service.success(self, "已从剪贴板创建 Prompt")
+        else:
+            notification_service.error(self, "创建失败")
 
     def _on_new_folder(self, parent_path: str):
         dialog = FolderDialog(self, folder_path=parent_path)
@@ -577,6 +631,7 @@ class MainWindow(QMainWindow, SearchMixin):
             content = prompt.read_content()
             if clipboard_service.copy_text(content):
                 self.statusBar().showMessage(Messages.COPIED, 2000)
+                notification_service.success(self, Messages.COPIED)
                 rel = prompt.path.relative_to(config.data_dir).as_posix()
                 state_service.add_recent_file(rel)
                 self._on_copy_done()

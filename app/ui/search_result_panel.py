@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from app.config import config
 from app.services.search_service import SearchResult
+from app.utils.highlight_utils import highlight_text
 
 
 class SearchResultPanel(QWidget):
@@ -97,10 +98,27 @@ class SearchResultPanel(QWidget):
 
     def _add_result_item(self, result: SearchResult):
         item = QListWidgetItem()
-        item.setText(result.filename)
-        item.setToolTip(f"{result.category or '根目录'} / {result.filename}")
+        display = self._build_highlighted_text(result.filename, self._keyword)
+        item.setText(display)
+        tooltip = f"{result.category or '根目录'} / {result.filename}"
+        if result.snippets:
+            snippet = result.snippets[0] if result.snippets else ""
+            tooltip += f"\n---\n{snippet}"
+        item.setToolTip(tooltip)
         item.setData(Qt.UserRole, result)
         self.result_list.addItem(item)
+
+    def _build_highlighted_text(self, text: str, keyword: str) -> str:
+        if not keyword:
+            return text
+        parts = highlight_text(text, keyword)
+        html = ""
+        for part in parts:
+            if part["highlight"]:
+                html += f"<span style='background:#FFEB3B;color:#000;font-weight:bold'>{part['text']}</span>"
+            else:
+                html += part["text"]
+        return html
 
     def _load_remaining_results(self):
         if not self._remaining_results:

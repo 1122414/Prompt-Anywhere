@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMenu,
@@ -104,11 +105,16 @@ class SearchResultPanel(QWidget):
             display = f"{name_html}<br><span style='color:#888;font-size:11px;'>{self._escape_html(snippet_text)}</span>"
         else:
             display = name_html
-        item.setText(display)
-        item.setToolTip(f"{result.category or '根目录'} / {result.filename}")
+
+        label = QLabel(display)
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
+        label.setContentsMargins(4, 2, 4, 2)
+
+        item.setSizeHint(label.sizeHint())
         item.setData(Qt.UserRole, result)
-        item.setSizeHint(item.sizeHint().expandedTo(item.sizeHint() + item.sizeHint() * 0.3))
         self.result_list.addItem(item)
+        self.result_list.setItemWidget(item, label)
 
     def _escape_html(self, text: str) -> str:
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")

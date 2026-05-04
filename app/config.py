@@ -408,25 +408,22 @@ class Config(Singleton):
     # ============ 模型配置 ============
     @property
     def model_provider(self) -> str:
-        return self._get_pref("model_provider", self._get_env("MODEL_PROVIDER", ""))
+        return self._get_env("MODEL_PROVIDER", "")
 
     @property
     def model_name(self) -> str:
-        return self._get_pref("model_name", self._get_env("MODEL_NAME", ""))
+        return self._get_env("MODEL_NAME", "")
 
     @property
     def model_api_key(self) -> str:
-        return self._get_pref("model_api_key", self._get_env("MODEL_API_KEY", ""))
+        return self._get_env("MODEL_API_KEY", "")
 
     @property
     def model_base_url(self) -> str:
-        return self._get_pref("model_base_url", self._get_env("MODEL_BASE_URL", ""))
+        return self._get_env("MODEL_BASE_URL", "")
 
     @property
     def model_temperature(self) -> float:
-        val = self._get_pref("model_temperature", None)
-        if val is not None:
-            return float(val)
         return float(self._get_env("MODEL_TEMPERATURE", "0.7"))
 
     # ============ 模板变量配置 ============

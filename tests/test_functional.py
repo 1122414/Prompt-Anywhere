@@ -34,6 +34,8 @@ class TestConfig(unittest.TestCase):
                 del os.environ[key]
 
         Config._instance = None
+        from app.services.state_service import StateService
+        StateService._instance = None
         self.config = Config()
         self.config._config_data = {
             "app": {"hotkey": "ctrl+shift+p", "always_on_top": False},
@@ -49,6 +51,8 @@ class TestConfig(unittest.TestCase):
             elif key in os.environ:
                 del os.environ[key]
         Config._instance = None
+        from app.services.state_service import StateService
+        StateService._instance = None
 
     def test_yaml_fallback_hotkey(self):
         self.assertEqual(self.config.hotkey, "ctrl+shift+p")

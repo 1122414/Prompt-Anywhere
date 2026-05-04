@@ -560,8 +560,11 @@ class MainWindow(QMainWindow, SearchMixin):
         return first if len(first) >= 2 else "未命名 Prompt"
 
     def _open_prompt_dialog_with_content(self, title: str, content: str):
-        current = self.tree_panel.get_selected_category()
-        default_category = current if current else ""
+        selected = self.tree_panel.tree.selectedItems()
+        default_category = ""
+        if selected:
+            item = selected[0]
+            default_category = self.tree_panel._get_item_path(item)
         from PySide6.QtWidgets import QInputDialog
         category, ok = QInputDialog.getText(
             self, "从剪贴板新建", "分类（可选）:", text=default_category
@@ -838,15 +841,15 @@ class MainWindow(QMainWindow, SearchMixin):
         self._save_window_state()
         event.ignore()
 
-        if state_service.get_preference("close_behavior_set", False):
+        close_to_tray = config_service.get("behavior.close_to_tray", True)
+        if close_to_tray:
             behavior = state_service.get_preference("close_behavior", "minimize")
             if behavior == "quit":
                 self._force_quit()
                 return
+            self.hide()
         else:
-            self._show_close_dialog()
-
-        self.hide()
+            self._force_quit()
 
     def _show_close_dialog(self):
         from PySide6.QtWidgets import QCheckBox, QDialog, QLabel, QPushButton, QVBoxLayout

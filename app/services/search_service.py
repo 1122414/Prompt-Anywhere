@@ -10,7 +10,6 @@ from app.config import config
 from app.services.pinyin_service import pinyin_service
 from app.services.search_matcher import FuzzyMatchResult, search_matcher
 from app.services.search_ranker import search_ranker
-from app.services.semantic_search_service import semantic_search_service
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,10 @@ class PromptFileIndexItem:
 class SearchIndex:
     def __init__(self):
         self._items: List[PromptFileIndexItem] = []
-        self._data_dir = config.data_dir
+
+    @property
+    def _data_dir(self):
+        return config.data_dir
 
     def _build_item(self, path: Path, rel: Path) -> PromptFileIndexItem:
         category = str(rel.parent).replace("\\", "/") if str(rel.parent) != "." else ""
@@ -146,7 +148,10 @@ class SearchWorker(QThread):
     def _do_search(self) -> List[SearchResult]:
         keyword = self.keyword.strip()
         if not keyword:
-            return []
+            return [SearchResult(
+                path=item.path, category=item.category, filename=item.filename,
+                matched_fields=["filename"], snippets=[], score=0,
+            ) for item in self.index_items]
 
         search_term = keyword.lower() if self.case_insensitive else keyword
         results = []
@@ -236,13 +241,17 @@ class SearchWorker(QThread):
                 ))
 
         if config.semantic_search_enabled and not self._cancelled:
-            semantic_results = semantic_search_service.search(keyword)
-            semantic_scores = {path: score for path, score in semantic_results}
-            for result in results:
-                semantic_score = semantic_scores.get(result.path, 0.0)
-                if semantic_score > 0:
-                    result.matched_fields.append("semantic")
-                    result.score = int(result.score * 0.75 + semantic_score * 100 * 0.25)
+            try:
+                from app.services.semantic_search_service import semantic_search_service
+                semantic_results = semantic_search_service.search(keyword)
+                semantic_scores = {path: score for path, score in semantic_results}
+                for result in results:
+                    semantic_score = semantic_scores.get(result.path, 0.0)
+                    if semantic_score > 0:
+                        result.matched_fields.append("semantic")
+                        result.score = int(result.score * 0.75 + semantic_score * 100 * 0.25)
+            except ImportError:
+                pass
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]
@@ -306,6 +315,11 @@ class SearchService:
         self._worker = SearchWorker(search_id, keyword, self._index.get_items(), case_insensitive)
         self._worker.setParent(None)
         return search_id, self._worker
+
+    def search(self, keyword: str, case_insensitive: bool = True) -> List:
+        self.rebuild_index()
+        worker = SearchWorker(0, keyword, self._index.get_items(), case_insensitive)
+        return worker._do_search()
 
     def get_current_search_id(self) -> int:
         return self._current_search_id

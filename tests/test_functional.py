@@ -19,6 +19,7 @@ class TestConfig(unittest.TestCase):
         "APP_NAME", "APP_VERSION", "GLOBAL_HOTKEY", "ALWAYS_ON_TOP",
         "START_MINIMIZED", "DATA_DIR", "EXPORT_DIR", "WINDOW_X",
         "WINDOW_Y", "WINDOW_WIDTH", "WINDOW_HEIGHT", "DEFAULT_MODE",
+        "DEFAULT_WINDOW_WIDTH", "DEFAULT_WINDOW_HEIGHT",
         "FILE_ENCODING", "PYGMENTS_STYLE", "SEARCH_CASE_INSENSITIVE",
         "LOG_LEVEL", "ENABLE_FILE_WATCHER",
         "MODEL_PROVIDER", "MODEL_NAME", "MODEL_API_KEY",
@@ -37,7 +38,7 @@ class TestConfig(unittest.TestCase):
         self.config._config_data = {
             "app": {"hotkey": "ctrl+shift+p", "always_on_top": False},
             "storage": {"data_dir": "./custom_data"},
-            "ui": {"window_width": 1200},
+            "ui": {"default_window_width": 1200},
             "model": {"provider": "openai", "name": "gpt-4"},
         }
 
@@ -150,6 +151,8 @@ class TestFileService(unittest.TestCase):
 class TestSearchService(unittest.TestCase):
     def setUp(self):
         self.search_service = SearchService()
+        SearchService._instance = None
+        self.search_service = SearchService()
         self.test_dir = Path(tempfile.mkdtemp())
         self.data_dir = self.test_dir / "data"
         self.data_dir.mkdir()
@@ -171,24 +174,25 @@ class TestSearchService(unittest.TestCase):
             del os.environ["DATA_DIR"]
         Config._instance = None
         FileService._instance = None
+        SearchService._instance = None
 
     def test_search_by_name(self):
-        prompts = [self.p1, self.p2, self.p3]
-        results = self.search_service.search("代码", prompts)
+        self.search_service.rebuild_index()
+        results = self.search_service.search("代码")
         self.assertEqual(len(results), 2)
-        names = [p.name for p in results]
+        names = [r.filename for r in results]
         self.assertIn("代码审查", names)
         self.assertIn("代码精简", names)
 
     def test_search_by_content(self):
-        prompts = [self.p1, self.p2, self.p3]
-        results = self.search_service.search("面试", prompts)
+        self.search_service.rebuild_index()
+        results = self.search_service.search("面试")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].name, "面试")
+        self.assertEqual(results[0].filename, "面试")
 
     def test_search_empty_keyword(self):
-        prompts = [self.p1, self.p2, self.p3]
-        results = self.search_service.search("", prompts)
+        self.search_service.rebuild_index()
+        results = self.search_service.search("")
         self.assertEqual(len(results), 3)
 
 

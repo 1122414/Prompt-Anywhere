@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -5,6 +6,8 @@ from typing import Any, Dict, List, Set
 
 import yaml
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 
 def _base_path() -> Path:
@@ -138,8 +141,8 @@ class Config:
             pref = state_service.get_preference(key, None)
             if pref is not None:
                 return pref
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"get_pref({key}) failed: {e}")
         return default
 
     @property
@@ -177,8 +180,16 @@ class Config:
         return int(self._get_env("DEFAULT_WINDOW_WIDTH", 900))
 
     @property
+    def window_width(self) -> int:
+        return self.default_window_width
+
+    @property
     def default_window_height(self) -> int:
         return int(self._get_env("DEFAULT_WINDOW_HEIGHT", 600))
+
+    @property
+    def window_height(self) -> int:
+        return self.default_window_height
 
     @property
     def default_window_opacity(self) -> float:

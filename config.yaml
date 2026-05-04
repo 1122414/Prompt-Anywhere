@@ -1,20 +1,124 @@
+# Prompt Anywhere 应用配置文件
+# 优先级：环境变量(.env) > config.yaml > 代码默认值
+# 修改后重启应用生效
+
+# ==================== 应用基础 ====================
 app:
   hotkey: ctrl+alt+p
   always_on_top: true
   start_minimized: false
+  esc_hide_enabled: true
+  copy_auto_hide: true
+  copy_hide_delay_ms: 200
+  log_level: INFO
+  enable_file_watcher: true
+
+# ==================== 存储 ====================
 storage:
   data_dir: ./data
   export_dir: ./exports
+
+# ==================== UI ====================
 ui:
   window_x: 100
   window_y: 100
-  window_width: 900
-  window_height: 600
+  default_window_width: 900
+  default_window_height: 600
+  default_view_mode: edit
+  pygments_style: github-dark
+  show_template_button: true
+  show_composer_button: true
+  composer_window_width: 900
+  composer_window_height: 600
+  template_dialog_width: 700
+  template_dialog_height: 520
   folder_icons:
     cli版/搜索: SP_DriveHDIcon
+
+# ==================== 搜索 ====================
+search:
+  debounce_ms: 120
+  max_results: 100
+  snippet_radius: 40
+  highlight_enabled: true
+  case_insensitive: true
+  enable_pinyin: true
+  enable_initials: true
+  enable_fuzzy: true
+  fuzzy_threshold: 60
+  fuzzy_mode: balanced
+  first_paint_results: 30
+
+# ==================== 语义搜索 ====================
+semantic_search:
+  enabled: false
+  provider: api
+  local_model: BAAI/bge-small-zh-v1.5
+  api_base_url: ""
+  api_key: ""
+  api_model: text-embedding-3-small
+  top_k: 20
+  min_score: 0.35
+  index_on_startup: false
+  auto_reindex: true
+
+# ==================== 知识库 ====================
+knowledge_base:
+  dir: ./.prompt_anywhere
+  auto_sync: true
+
+# ==================== AI模板助手 ====================
+ai_template:
+  enabled: false
+  provider: openai_compatible
+  base_url: ""
+  api_key: ""
+  model: ""
+  temperature: 0.2
+  timeout_seconds: 30
+  detection_mode: hybrid
+
+# ==================== 模板变量 ====================
+template:
+  variable_pattern: \{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}
+  variable_max_count: 50
+  default_multiline: true
+
+# ==================== Composer 组合器 ====================
+composer:
+  separator: "\n\n---\n\n"
+  include_file_title: true
+  title_level: 1
+  auto_detect_variables: true
+  save_dir: ./data/组合模板
+  export_dir: ./exports
+
+# ==================== 文件 ====================
+file:
+  supported_extensions: .md,.txt
+  image_assets_dir_name: _assets
+  pasted_image_format: png
+
+# ==================== 内置模板 ====================
+builtin_templates:
+  dir: ./builtin_templates
+  enabled: true
+
+# ==================== 备份 ====================
+backup:
+  auto_backup_enabled: true
+  auto_backup_interval_hours: 24
+  max_backup_count: 20
+
+# ==================== 历史版本 ====================
+history:
+  enabled: true
+  max_versions_per_file: 20
+
+# ==================== 模型（预留） ====================
 model:
-  provider: ''
-  name: ''
-  api_key: ''
-  base_url: ''
+  provider: ""
+  name: ""
+  api_key: ""
+  base_url: ""
   temperature: 0.7

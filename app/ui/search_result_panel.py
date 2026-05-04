@@ -189,7 +189,13 @@ class SearchResultPanel(QWidget):
         except Exception:
             self.preview.setPlainText("(无法读取文件)")
             return
-        self.preview.setPlainText(content)
+
+        if self._keyword:
+            escaped_content = self._escape_html(content)
+            highlighted = self._build_highlighted_text(content, self._keyword)
+            self.preview.setHtml(f"<pre style='white-space:pre-wrap;font-family:inherit;'>{highlighted}</pre>")
+        else:
+            self.preview.setPlainText(content)
 
     def _show_context_menu(self, position):
         item = self.result_list.itemAt(position)

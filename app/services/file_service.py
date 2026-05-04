@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Iterator, List, Optional
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +51,10 @@ class PromptFile:
             return False
 
 
-class FileService:
-    _instance = None
+class FileService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._ensure_data_dir()
-        return cls._instance
+    def _init(self):
+        self._ensure_data_dir()
 
     def _ensure_data_dir(self) -> None:
         config.data_dir.mkdir(parents=True, exist_ok=True)

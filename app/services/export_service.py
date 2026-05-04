@@ -2,15 +2,10 @@ import shutil
 from pathlib import Path
 
 from app.services.file_service import PromptFile
+from app.utils.singleton import Singleton
 
 
-class ExportService:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class ExportService(Singleton):
 
     def export(self, prompt_file: PromptFile, dest_path: Path) -> bool:
         try:

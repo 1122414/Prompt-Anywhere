@@ -4,17 +4,12 @@ from typing import List
 from app.config import config
 from app.services.embedding_service import embedding_service
 from app.services.vector_store import vector_store
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class SemanticSearchService:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class SemanticSearchService(Singleton):
 
     def is_enabled(self) -> bool:
         return config.semantic_search_enabled

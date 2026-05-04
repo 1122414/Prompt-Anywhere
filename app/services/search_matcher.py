@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from rapidfuzz import fuzz
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
@@ -14,13 +15,7 @@ class FuzzyMatchResult:
     matched: bool
 
 
-class SearchMatcher:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class SearchMatcher(Singleton):
 
     def _get_threshold(self) -> int:
         mode = config.search_fuzzy_mode

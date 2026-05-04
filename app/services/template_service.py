@@ -3,19 +3,14 @@ import re
 from re import Match
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 _VALID_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
-class TemplateService:
-    _instance: "TemplateService | None" = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class TemplateService(Singleton):
 
     def extract_variables(self, content: str) -> list[str]:
         if not content:

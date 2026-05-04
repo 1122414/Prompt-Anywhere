@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Set
 import yaml
 from dotenv import load_dotenv
 
+from app.utils.singleton import Singleton
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,15 +103,11 @@ _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
 }
 
 
-class Config:
-    _instance = None
+class Config(Singleton):
     _config_data: Dict[str, Any] = {}
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._load_config()
-        return cls._instance
+    def _init(self):
+        self._load_config()
 
     def _load_config(self) -> None:
         config_path = _base_path() / "config.yaml"

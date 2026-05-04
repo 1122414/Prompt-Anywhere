@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +22,10 @@ WELCOME_CONTENT = """# 欢迎使用 Prompt Anywhere
 """
 
 
-class StartupService:
-    _instance = None
+class StartupService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._is_first_launch = False
-        return cls._instance
+    def _init(self):
+        self._is_first_launch = False
 
     def initialize(self):
         self._is_first_launch = not config.data_dir.exists()

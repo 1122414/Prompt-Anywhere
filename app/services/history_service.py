@@ -3,17 +3,12 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class HistoryService:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class HistoryService(Singleton):
 
     def get_history_dir(self, file_path: Path) -> Path:
         return file_path.parent / ".history" / file_path.stem

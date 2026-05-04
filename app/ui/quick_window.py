@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
@@ -10,13 +10,14 @@ from app.config import config
 from app.constants import Messages
 from app.services.clipboard_service import clipboard_service
 from app.services.file_service import PromptFile
-from app.services.search_service import SearchResult, search_service
+from app.services.search_service import SearchResult
 from app.services.state_service import state_service
 from app.services.usage_service import usage_service
+from app.ui.search_mixin import SearchMixin
 from app.ui.search_result_panel import SearchResultPanel
 
 
-class QuickWindow(QMainWindow):
+class QuickWindow(QMainWindow, SearchMixin):
     open_main_requested = Signal(str)
 
     def __init__(self):
@@ -27,12 +28,7 @@ class QuickWindow(QMainWindow):
         self.setMinimumSize(500, 400)
         self.resize(600, 450)
 
-        self._search_timer = QTimer(self)
-        self._search_timer.setSingleShot(True)
-        self._search_timer.timeout.connect(self._do_search)
-        self._search_worker = None
-        self._last_search_keyword = ""
-
+        self._setup_search()
         self._setup_ui()
 
     def _setup_ui(self):
@@ -44,7 +40,7 @@ class QuickWindow(QMainWindow):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(Messages.SEARCH_PLACEHOLDER)
-        self.search_input.textChanged.connect(self._on_search)
+        self.search_input.textChanged.connect(self._on_search_input)
         self.search_input.installEventFilter(self)
         layout.addWidget(self.search_input)
 
@@ -101,6 +97,14 @@ class QuickWindow(QMainWindow):
             self.search_result_panel.clear_results()
             return
         self.search_result_panel.set_results(results, self._last_search_keyword)
+        if self.search_result_panel.result_list.count() > 0:
+        self.search_result_panel.select_first()
+
+    def _clear_search_results(self):
+        self.search_result_panel.clear_results()
+
+    def _display_search_results(self, results, keyword):
+        self.search_result_panel.set_results(results, keyword)
         if self.search_result_panel.result_list.count() > 0:
             self.search_result_panel.select_first()
 

@@ -5,23 +5,20 @@ from typing import List, Tuple
 import numpy as np
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class VectorStore:
-    _instance = None
+class VectorStore(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._index_dir = config.knowledge_base_dir / "vector_index"
-            cls._instance._embeddings_file = cls._instance._index_dir / "embeddings.npy"
-            cls._instance._items_file = cls._instance._index_dir / "items.json"
-            cls._instance._embeddings: Optional[np.ndarray] = None
-            cls._instance._items: List[str] = []
-            cls._instance._loaded = False
-        return cls._instance
+    def _init(self):
+        self._index_dir = config.knowledge_base_dir / "vector_index"
+        self._embeddings_file = self._index_dir / "embeddings.npy"
+        self._items_file = self._index_dir / "items.json"
+        self._embeddings: Optional[np.ndarray] = None
+        self._items: List[str] = []
+        self._loaded = False
 
     def _ensure_dir(self):
         self._index_dir.mkdir(parents=True, exist_ok=True)

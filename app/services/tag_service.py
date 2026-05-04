@@ -3,20 +3,17 @@ import logging
 from typing import Dict, List, Set
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class TagService:
-    _instance = None
+class TagService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._tags_file = config.knowledge_base_dir / "tags.json"
-            cls._instance._tag_index: Dict[str, Set[str]] = {}
-            cls._instance._ensure_loaded()
-        return cls._instance
+    def _init(self):
+        self._tags_file = config.knowledge_base_dir / "tags.json"
+        self._tag_index: Dict[str, Set[str]] = {}
+        self._ensure_loaded()
 
     def _ensure_loaded(self):
         config.knowledge_base_dir.mkdir(parents=True, exist_ok=True)

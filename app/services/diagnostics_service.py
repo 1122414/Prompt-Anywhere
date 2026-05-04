@@ -7,17 +7,12 @@ from datetime import datetime
 from pathlib import Path
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class DiagnosticsService:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class DiagnosticsService(Singleton):
 
     def export_diagnostics(self, output_path: Path) -> bool:
         try:

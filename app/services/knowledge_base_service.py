@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +35,13 @@ class PromptMetadata:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
-class KnowledgeBaseService:
-    _instance = None
+class KnowledgeBaseService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._kb_dir = config.knowledge_base_dir
-            cls._instance._metadata_file = cls._instance._kb_dir / "metadata.json"
-            cls._instance._items: Dict[str, PromptMetadata] = {}
-            cls._initialized = False
-        return cls._instance
+    def _init(self):
+        self._kb_dir = config.knowledge_base_dir
+        self._metadata_file = self._kb_dir / "metadata.json"
+        self._items: Dict[str, PromptMetadata] = {}
+        self._initialized = False
 
     def ensure_initialized(self):
         if self._initialized:

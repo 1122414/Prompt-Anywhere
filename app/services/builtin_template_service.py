@@ -4,18 +4,15 @@ from typing import Dict, List, Tuple
 
 from app.config import config
 from app.services.file_service import file_service
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class BuiltinTemplateService:
-    _instance = None
+class BuiltinTemplateService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._template_dir = config.builtin_template_dir
-        return cls._instance
+    def _init(self):
+        self._template_dir = config.builtin_template_dir
 
     def list_templates(self) -> List[Dict[str, str]]:
         if not config.enable_builtin_templates:

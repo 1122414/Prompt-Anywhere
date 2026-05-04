@@ -1,13 +1,10 @@
 from PySide6.QtWidgets import QApplication
 
+from app.utils.singleton import Singleton
 
-class ClipboardService:
+
+class ClipboardService(Singleton):
     _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def copy_text(self, text: str) -> bool:
         try:

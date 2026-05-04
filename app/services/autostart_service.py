@@ -3,19 +3,15 @@ import os
 import sys
 import winreg
 
+from app.utils.singleton import Singleton
+
 logger = logging.getLogger(__name__)
 
 REGISTRY_KEY_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
 REGISTRY_VALUE_NAME = "PromptAnywhere"
 
 
-class AutostartService:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+class AutostartService(Singleton):
 
     def _get_startup_command(self) -> str:
         if getattr(sys, "frozen", False):

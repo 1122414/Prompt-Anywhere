@@ -9,7 +9,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from PySide6.QtCore import Qt, QThread, QTimer, QFileSystemWatcher, Signal
+from PySide6.QtCore import Qt, QThread, QFileSystemWatcher, Signal
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -32,11 +32,12 @@ from app.constants import AppConstants, Messages
 from app.services.clipboard_service import clipboard_service
 from app.services.export_service import export_service
 from app.services.file_service import PromptFile, file_service
-from app.services.search_service import SearchResult, search_service
+from app.services.search_service import SearchResult
 from app.services.config_service import config_service
 from app.services.state_service import state_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
+from app.ui.search_mixin import SearchMixin
 from app.ui.search_popup import SearchPopupWindow
 from app.ui.tray import TrayManager
 from app.ui.tree_panel import TreePanel
@@ -119,7 +120,7 @@ class HotkeyThread(QThread):
         self.wait(2000)
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, SearchMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(config.app_name)
@@ -139,11 +140,7 @@ class MainWindow(QMainWindow):
         self._window_opacity = window_state.get("opacity", config.default_window_opacity)
         self.setWindowOpacity(self._window_opacity)
 
-        self._search_timer = QTimer(self)
-        self._search_timer.setSingleShot(True)
-        self._search_timer.timeout.connect(self._do_search)
-        self._search_worker = None
-        self._last_search_keyword = ""
+        self._setup_search()
 
         self._setup_window_flags()
         self._setup_ui()
@@ -497,25 +494,11 @@ class MainWindow(QMainWindow):
             return
         self._search_timer.start(config.search_debounce_ms)
 
-    def _do_search(self):
-        keyword = self._last_search_keyword
-        if not keyword:
-            self._hide_search_results()
-            return
-        search_id, worker = search_service.search_async(keyword, config.search_case_insensitive)
-        worker.setParent(None)
-        worker.results_ready.connect(self._on_search_results_ready)
-        worker.finished.connect(worker.deleteLater)
-        worker.start()
-        self._search_worker = worker
+    def _clear_search_results(self):
+        self.search_popup.clear()
 
-    def _on_search_results_ready(self, search_id: int, results: list[SearchResult]):
-        if search_id != search_service.get_current_search_id():
-            return
-        if not self._last_search_keyword:
-            self._hide_search_results()
-            return
-        self.search_popup.show_results(results, self._last_search_keyword)
+    def _display_search_results(self, results, keyword):
+        self.search_popup.show_results(results, keyword)
 
     def _hide_search_results(self):
         self.search_popup.clear()

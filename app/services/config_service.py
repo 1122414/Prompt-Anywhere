@@ -6,6 +6,8 @@ from typing import Any, Dict
 
 from dotenv import load_dotenv
 
+from app.utils.singleton import Singleton
+
 logger = logging.getLogger(__name__)
 
 _DEFAULTS: Dict[str, Any] = {
@@ -80,18 +82,14 @@ def _set_nested(data: Dict[str, Any], dotted_key: str, value: Any) -> None:
     current[parts[-1]] = value
 
 
-class ConfigService:
-    _instance: "ConfigService | None" = None
+class ConfigService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._env_defaults = {}
-            cls._instance._user_config = {}
-            cls._instance._config_path = Path("app_config.json")
-            cls._instance._load_env_defaults()
-            cls._instance._load_user_config()
-        return cls._instance
+    def _init(self):
+        self._env_defaults = {}
+        self._user_config = {}
+        self._config_path = Path("app_config.json")
+        self._load_env_defaults()
+        self._load_user_config()
 
     def _load_env_defaults(self):
         load_dotenv(override=False)

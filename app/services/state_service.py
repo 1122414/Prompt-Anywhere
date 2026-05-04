@@ -3,19 +3,16 @@ import logging
 from typing import Any, Dict
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class StateService:
-    _instance = None
+class StateService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._state: Dict[str, Any] = {}
-            cls._instance._load_state()
-        return cls._instance
+    def _init(self):
+        self._state: Dict[str, Any] = {}
+        self._load_state()
 
     def _load_state(self):
         state_path = config.user_state_path

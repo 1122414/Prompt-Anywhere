@@ -4,20 +4,17 @@ from datetime import datetime
 from typing import Dict
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class UsageService:
-    _instance = None
+class UsageService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._usage_file = config.knowledge_base_dir / "usage.json"
-            cls._instance._data: Dict[str, Dict] = {}
-            cls._instance._ensure_loaded()
-        return cls._instance
+    def _init(self):
+        self._usage_file = config.knowledge_base_dir / "usage.json"
+        self._data: Dict[str, Dict] = {}
+        self._ensure_loaded()
 
     def _ensure_loaded(self):
         config.knowledge_base_dir.mkdir(parents=True, exist_ok=True)

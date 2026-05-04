@@ -5,18 +5,15 @@ import httpx
 import numpy as np
 
 from app.config import config
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
 
-class EmbeddingService:
-    _instance = None
+class EmbeddingService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._cache: Dict[str, np.ndarray] = {}
-        return cls._instance
+    def _init(self):
+        self._cache: Dict[str, np.ndarray] = {}
 
     def _get_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}

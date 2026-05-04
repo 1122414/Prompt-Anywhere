@@ -4,18 +4,16 @@ from datetime import datetime
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from app.utils.singleton import Singleton
+
 logger = logging.getLogger(__name__)
 
 
-class BackupService:
-    _instance = None
+class BackupService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._backup_dir = None
-            cls._instance._metadata_path = None
-        return cls._instance
+    def _init(self):
+        self._backup_dir = None
+        self._metadata_path = None
 
     def initialize(self, backup_dir: Path):
         self._backup_dir = backup_dir

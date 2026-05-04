@@ -3,17 +3,15 @@ from typing import Dict
 
 from pypinyin import Style, lazy_pinyin
 
+from app.utils.singleton import Singleton
+
 logger = logging.getLogger(__name__)
 
 
-class PinyinService:
-    _instance = None
+class PinyinService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._cache: Dict[str, Dict[str, str]] = {}
-        return cls._instance
+    def _init(self):
+        self._cache: Dict[str, Dict[str, str]] = {}
 
     def get_full_pinyin(self, text: str) -> str:
         if not text:

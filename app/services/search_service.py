@@ -10,6 +10,7 @@ from app.config import config
 from app.services.pinyin_service import pinyin_service
 from app.services.search_matcher import FuzzyMatchResult, search_matcher
 from app.services.search_ranker import search_ranker
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
@@ -277,16 +278,12 @@ class SearchWorker(QThread):
         return snippets
 
 
-class SearchService:
-    _instance = None
+class SearchService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._index = SearchIndex()
-            cls._instance._current_search_id = 0
-            cls._instance._worker = None
-        return cls._instance
+    def _init(self):
+        self._index = SearchIndex()
+        self._current_search_id = 0
+        self._worker = None
 
     def rebuild_index(self):
         self._index.rebuild()

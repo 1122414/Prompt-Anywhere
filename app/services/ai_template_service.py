@@ -6,6 +6,7 @@ from typing import List, Optional
 from app.config import config
 from app.providers.llm.base import LLMProvider
 from app.providers.llm.openai_compatible import OllamaProvider, OpenAICompatibleProvider
+from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +19,10 @@ class TemplateVariable:
     description: str = ""
 
 
-class AITemplateService:
-    _instance = None
+class AITemplateService(Singleton):
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._provider: Optional[LLMProvider] = None
-        return cls._instance
+    def _init(self):
+        self._provider: Optional[LLMProvider] = None
 
     def _get_provider(self) -> Optional[LLMProvider]:
         if not config.ai_template_enabled:

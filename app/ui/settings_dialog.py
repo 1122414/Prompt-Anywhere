@@ -205,7 +205,32 @@ class SettingsDialog(QDialog):
         self.max_versions_spin.setMaximum(100)
         layout.addRow("最大历史版本数:", self.max_versions_spin)
 
+        manage_btn = QPushButton("管理备份")
+        manage_btn.clicked.connect(self._manage_backups)
+        layout.addRow(manage_btn)
+
         return tab
+
+    def _manage_backups(self):
+        from app.services.backup_service import backup_service
+        from pathlib import Path
+        try:
+            backup_service.initialize(Path("backups"))
+            backups = backup_service.list_backups()
+            if not backups:
+                QMessageBox.information(self, "备份管理", "暂无备份文件")
+                return
+            backup_list = "\n".join([f"{i+1}. {b.name}" for i, b in enumerate(backups)])
+            reply = QMessageBox.question(
+                self, "备份管理",
+                f"共 {len(backups)} 个备份:\n\n{backup_list}\n\n是否清理旧备份（保留最新 {config.app_name} 个）？",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            )
+            if reply == QMessageBox.Yes:
+                backup_service.cleanup_old_backups()
+                QMessageBox.information(self, "备份管理", "旧备份已清理")
+        except Exception as e:
+            QMessageBox.warning(self, "备份管理", f"操作失败: {e}")
 
     def _create_features_tab(self):
         tab = QWidget()
@@ -336,7 +361,20 @@ class SettingsDialog(QDialog):
         open_log_btn.clicked.connect(self._open_log_dir)
         layout.addWidget(open_log_btn)
 
+        export_diag_btn = QPushButton("导出诊断信息")
+        export_diag_btn.clicked.connect(self._export_diagnostics)
+        layout.addWidget(export_diag_btn)
+
         return tab
+
+    def _export_diagnostics(self):
+        from app.services.diagnostics_service import diagnostics_service
+        from pathlib import Path
+        try:
+            output = diagnostics_service.export_diagnostics(Path("./logs"))
+            QMessageBox.information(self, "导出成功", f"诊断信息已导出到:\n{output}")
+        except Exception as e:
+            QMessageBox.warning(self, "导出失败", str(e))
 
     def _browse_dir(self, line_edit):
         dir_path = QFileDialog.getExistingDirectory(self, "选择目录")

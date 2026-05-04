@@ -299,6 +299,7 @@ class TreePanel(QWidget):
                     menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
                 menu.addAction("复制内容", lambda: self._copy_prompt(data))
                 menu.addAction("加入组合器", lambda: self._add_to_composer(data))
+                menu.addAction("查看历史版本", lambda: self._show_version_history(data))
                 menu.addSeparator()
                 menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
                 selected = self.tree.selectedItems()
@@ -695,5 +696,38 @@ class TreePanel(QWidget):
                 item.setExpanded(True)
                 return True
         return False
+
+    def _show_version_history(self, prompt_file):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QTextEdit, QDialogButtonBox
+        from app.services.history_service import history_service
+        versions = history_service.list_versions(prompt_file.path)
+        if not versions:
+            QMessageBox.information(self, "历史版本", "暂无历史版本")
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"历史版本 - {prompt_file.filename}")
+        dialog.setMinimumSize(600, 400)
+        layout = QVBoxLayout(dialog)
+        version_list = QListWidget()
+        for v in versions:
+            version_list.addItem(f"{v['timestamp']} ({v['size']} 字节)")
+        layout.addWidget(QLabel(f"共 {len(versions)} 个历史版本"))
+        layout.addWidget(version_list)
+        preview = QTextEdit()
+        preview.setReadOnly(True)
+        layout.addWidget(preview)
+
+        def on_select():
+            idx = version_list.currentRow()
+            if 0 <= idx < len(versions):
+                content = history_service.get_version_content(versions[idx]["path"])
+                preview.setPlainText(content if content else "(无法读取)")
+
+        version_list.currentRowChanged.connect(lambda _: on_select())
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
 
 

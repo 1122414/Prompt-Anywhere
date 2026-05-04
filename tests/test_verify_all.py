@@ -87,6 +87,47 @@ def test_singleton():
     return []
 
 
+def test_pure_functions():
+    errors = []
+
+    from app.utils.highlight_utils import highlight_text
+
+    parts = highlight_text("中英翻译助手", "翻译")
+    highlights = [p for p in parts if p["highlight"]]
+    assert len(highlights) == 1, f"Expected 1 highlight, got {len(highlights)}"
+    assert highlights[0]["text"] == "翻译", f"Expected '翻译', got '{highlights[0]['text']}'"
+
+    parts = highlight_text("hello world", "")
+    assert len(parts) == 1 and not parts[0]["highlight"], "Empty query should return no highlight"
+
+    parts = highlight_text("test (special) chars", "(special)")
+    highlights = [p for p in parts if p["highlight"]]
+    assert len(highlights) == 1, "Special chars should work with re.escape"
+
+    parts = highlight_text("", "test")
+    assert len(parts) == 1 and not parts[0]["highlight"], "Empty text should return no highlight"
+
+    parts = highlight_text("Case MATCH", "match")
+    highlights = [p for p in parts if p["highlight"]]
+    assert len(highlights) == 1, "Case insensitive should work"
+
+    from app.ui.main_window import MainWindow
+    mw = MainWindow.__new__(MainWindow)
+    title = mw._extract_title_from_text("# 英文润色助手\n\n正文内容")
+    assert title == "英文润色助手", f"Expected '英文润色助手', got '{title}'"
+
+    title = mw._extract_title_from_text("请帮我把下面的文章总结成5个要点\n正文...")
+    assert title == "请帮我把下面的文章总结成5个要点", f"Got '{title}'"
+
+    title = mw._extract_title_from_text("A")
+    assert title == "未命名 Prompt", f"Short title should be default, got '{title}'"
+
+    title = mw._extract_title_from_text("- 列表项标题\n正文")
+    assert title == "列表项标题", f"Got '{title}'"
+
+    return errors
+
+
 def run():
     print("=" * 60)
     print("Prompt Anywhere v0.3.0 功能验证测试")
@@ -120,6 +161,15 @@ def run():
             print(f"  FAIL: {e}")
     else:
         print("  Singleton pattern working correctly")
+
+    print("\n[v0.3] 纯函数测试...")
+    pure_errors = test_pure_functions()
+    if pure_errors:
+        failed_count += len(pure_errors)
+        for e in pure_errors:
+            print(f"  FAIL: {e}")
+    else:
+        print("  highlight_text + extract_title passed")
 
     print("\n[4/4] 单元测试套件...")
     test_files = [

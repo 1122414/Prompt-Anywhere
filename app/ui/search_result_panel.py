@@ -98,27 +98,33 @@ class SearchResultPanel(QWidget):
 
     def _add_result_item(self, result: SearchResult):
         item = QListWidgetItem()
-        display = self._build_highlighted_text(result.filename, self._keyword)
-        item.setText(display)
-        tooltip = f"{result.category or '根目录'} / {result.filename}"
+        name_html = self._build_highlighted_text(result.filename, self._keyword)
         if result.snippets:
-            snippet = result.snippets[0] if result.snippets else ""
-            tooltip += f"\n---\n{snippet}"
-        item.setToolTip(tooltip)
+            snippet_text = result.snippets[0][:100]
+            display = f"{name_html}<br><span style='color:#888;font-size:11px;'>{self._escape_html(snippet_text)}</span>"
+        else:
+            display = name_html
+        item.setText(display)
+        item.setToolTip(f"{result.category or '根目录'} / {result.filename}")
         item.setData(Qt.UserRole, result)
+        item.setSizeHint(item.sizeHint().expandedTo(item.sizeHint() + item.sizeHint() * 0.3))
         self.result_list.addItem(item)
+
+    def _escape_html(self, text: str) -> str:
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
     def _build_highlighted_text(self, text: str, keyword: str) -> str:
         if not keyword:
-            return text
+            return self._escape_html(text)
         parts = highlight_text(text, keyword)
-        html = ""
+        html_parts = []
         for part in parts:
+            escaped = self._escape_html(part["text"])
             if part["highlight"]:
-                html += f"<span style='background:#FFEB3B;color:#000;font-weight:bold'>{part['text']}</span>"
+                html_parts.append(f"<span style='background:#FFEB3B;color:#000;font-weight:bold'>{escaped}</span>")
             else:
-                html += part["text"]
-        return html
+                html_parts.append(escaped)
+        return "".join(html_parts)
 
     def _load_remaining_results(self):
         if not self._remaining_results:

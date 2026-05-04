@@ -9,7 +9,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from PySide6.QtCore import Qt, QThread, QFileSystemWatcher, Signal
+from PySide6.QtCore import Qt, QThread, QTimer, QFileSystemWatcher, Signal
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,

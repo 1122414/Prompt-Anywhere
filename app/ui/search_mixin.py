@@ -22,6 +22,7 @@ class SearchMixin:
 
     def _do_search(self):
         keyword = self._last_search_keyword
+        if not keyword:
             self._clear_search_results()
             return
         search_id, worker = search_service.search_async(keyword, config.search_case_insensitive)

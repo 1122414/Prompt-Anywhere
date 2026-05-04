@@ -85,6 +85,15 @@ class SearchResultPanel(QWidget):
 
         if self.result_list.count() > 0:
             self.result_list.setCurrentRow(0)
+        elif keyword:
+            self._show_empty_hint()
+
+    def _show_empty_hint(self):
+        from app.constants import Messages
+        hint_item = QListWidgetItem()
+        hint_item.setText(Messages.SEARCH_NO_RESULTS)
+        hint_item.setFlags(Qt.NoItemFlags)
+        self.result_list.addItem(hint_item)
 
     def _add_result_item(self, result: SearchResult):
         item = QListWidgetItem()

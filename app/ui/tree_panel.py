@@ -299,6 +299,7 @@ class TreePanel(QWidget):
                     menu.addAction("收藏", lambda: self._toggle_favorite(rel, True))
                 menu.addAction("复制内容", lambda: self._copy_prompt(data))
                 menu.addAction("加入组合器", lambda: self._add_to_composer(data))
+                menu.addAction("打开所在文件夹", lambda: self._open_containing_folder(data))
                 menu.addAction("查看历史版本", lambda: self._show_version_history(data))
                 menu.addSeparator()
                 menu.addAction("重命名", lambda: self.rename_prompt_requested.emit(data))
@@ -729,5 +730,13 @@ class TreePanel(QWidget):
         buttons.accepted.connect(dialog.accept)
         layout.addWidget(buttons)
         dialog.exec()
+
+    def _open_containing_folder(self, prompt_file):
+        import os
+        folder = prompt_file.path.parent
+        try:
+            os.startfile(str(folder))
+        except Exception:
+            pass
 
 

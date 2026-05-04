@@ -1,0 +1,65 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+
+block_cipher = None
+
+
+a = Analysis(
+    ['app\\main.py'],
+    pathex=[],
+    binaries=[],
+    datas=[('builtin_templates', 'builtin_templates'), ('.env', '.'), ('config.yaml', '.')],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'matplotlib', 'IPython', 'jupyter', 'nbformat', 'nbconvert',
+        'ipykernel', 'ipywidgets', 'jupyter_client', 'jupyter_core',
+        'jupyterlab', 'notebook', 'qtconsole', 'zmq', 'pyzmq',
+        'jedi', 'parso', 'pytest', 'py', 'pluggy', 'iniconfig',
+        'PIL', 'Pillow', 'scipy', 'pandas', 'scikit-learn',
+        'torch', 'torchvision', 'tensorflow',
+        'cv2', 'opencv', 'cv', 'skimage',
+        'test', 'tests', 'unittest', 'doctest',
+        'setuptools', 'distutils', 'pkg_resources',
+        'gevent', 'greenlet', 'zope',
+        'cryptography', 'cffi', 'pycparser',
+        'PyQt5', 'PyQt6',
+        'gi', 'cairo',
+    ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='PromptAnywhere',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon='assets/app_icon.ico',
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='PromptAnywhere',
+)

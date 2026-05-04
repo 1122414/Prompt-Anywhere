@@ -1,7 +1,5 @@
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
-    QApplication,
     QLineEdit,
     QMainWindow,
     QVBoxLayout,
@@ -36,7 +34,6 @@ class QuickWindow(QMainWindow):
         self._last_search_keyword = ""
 
         self._setup_ui()
-        self._setup_hotkey()
 
     def _setup_ui(self):
         central = QWidget()
@@ -56,9 +53,6 @@ class QuickWindow(QMainWindow):
         self.search_result_panel.result_copy_requested.connect(self._on_result_copy)
         self.search_result_panel.escape_pressed.connect(self._on_escape)
         layout.addWidget(self.search_result_panel)
-
-    def _setup_hotkey(self):
-        pass
 
     def showEvent(self, event):
         super().showEvent(event)

@@ -1,9 +1,5 @@
-import logging
-
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QIcon, QPainter, QPen, QPixmap
-
-logger = logging.getLogger(__name__)
 
 
 def create_app_icon(size: int = 256) -> QIcon:

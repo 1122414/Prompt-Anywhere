@@ -11,7 +11,6 @@ from app.services.pinyin_service import pinyin_service
 from app.services.search_matcher import FuzzyMatchResult, search_matcher
 from app.services.search_ranker import search_ranker
 from app.services.semantic_search_service import semantic_search_service
-from app.services.state_service import state_service
 
 logger = logging.getLogger(__name__)
 

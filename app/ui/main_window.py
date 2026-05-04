@@ -35,8 +35,6 @@ from app.services.file_service import PromptFile, file_service
 from app.services.search_service import SearchResult, search_service
 from app.services.config_service import config_service
 from app.services.state_service import state_service
-from app.services.startup_service import startup_service
-from app.services.logging_service import logging_service
 from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
 from app.ui.search_popup import SearchPopupWindow
@@ -518,9 +516,6 @@ class MainWindow(QMainWindow):
             self._hide_search_results()
             return
         self.search_popup.show_results(results, self._last_search_keyword)
-
-    def _show_search_results(self):
-        pass
 
     def _hide_search_results(self):
         self.search_popup.clear()

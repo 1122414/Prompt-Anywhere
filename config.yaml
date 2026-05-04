@@ -10,7 +10,6 @@ ui:
   window_y: 100
   window_width: 900
   window_height: 600
-  default_mode: edit
   folder_icons:
     cli版/搜索: SP_DriveHDIcon
 model:

@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.config import config
 from app.services.search_service import SearchResult
 from app.ui.search_result_panel import SearchResultPanel
 

@@ -1,15 +1,10 @@
-import re
-
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QKeyEvent, QFont
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
     QListWidget,
     QListWidgetItem,
     QMenu,
     QMessageBox,
-    QPlainTextEdit,
     QSplitter,
     QTextBrowser,
     QVBoxLayout,
@@ -17,7 +12,6 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import config
-from app.services.file_service import PromptFile
 from app.services.search_service import SearchResult
 
 

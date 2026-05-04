@@ -696,23 +696,4 @@ class TreePanel(QWidget):
                 return True
         return False
 
-    def select_prompt(self, prompt):
-        self._select_prompt_in_item(self.tree.invisibleRootItem(), prompt)
-
-    def _select_prompt_in_item(self, parent, prompt):
-        for i in range(parent.childCount()):
-            child = parent.child(i)
-            data = child.data(0, Qt.UserRole)
-            if isinstance(data, PromptFile) and data.path == prompt.path:
-                self.tree.setCurrentItem(child)
-                parent = child.parent()
-                while parent:
-                    parent.setExpanded(True)
-                    parent = parent.parent()
-                return True
-            if self._is_folder_item(child):
-                if self._select_prompt_in_item(child, prompt):
-                    return True
-        return False
-
 

@@ -23,7 +23,7 @@ Prompt-Anywhere/
 ├── tests/               # unittest-based functional tests
 ├── data/                # User prompts (gitignored)
 ├── config.yaml          # App config (hotkey, UI, storage, model)
-├── requirements.txt     # PySide6, pynput, markdown, PyYAML, dotenv, send2trash
+├── requirements.txt     # PySide6, markdown, PyYAML, dotenv, send2trash
 └── app_state.json       # Runtime state (gitignored)
 ```
 
@@ -35,7 +35,7 @@ Prompt-Anywhere/
 | Add service | `app/services/` | Singleton pattern, instantiate at module level |
 | Change config | `config.yaml` + `app/config.py` | Env vars override YAML |
 | Add file type support | `config.yaml` → `supported_extensions` | Default: `.md,.txt` |
-| Modify hotkey | `config.yaml` → `app.hotkey` | Uses pynput GlobalHotKeys |
+| Modify hotkey | `config.yaml` → `app.hotkey` | Uses Win32 RegisterHotKey via ctypes |
 | Run tests | `python tests/test_functional.py` | unittest, no pytest config |
 | LLM/provider integration | `app/providers/llm/` | OpenAI-compatible + Ollama |
 | Template variables | `app/services/template_service.py` | `{{变量名}}` extraction + generation |
@@ -77,7 +77,7 @@ Prompt-Anywhere/
 - Do NOT read config via `os.getenv()` in services — all config access through `config.py`
 - Do NOT block UI thread for search — use QThread-based SearchWorker
 - Do NOT read full file on every keystroke — use in-memory SearchIndex
-- Do NOT use `pywin32` unless pynput truly cannot fix the issue
+- Do NOT use `pywin32` (use Win32 API via ctypes.windll)
 
 ## COMMANDS
 
@@ -105,7 +105,7 @@ pip install -r requirements.txt
 
 - No CI/CD configured — manual builds only
 - No pyproject.toml or setup.py — run directly, not packaged
-- `app/providers/` contains ABC stubs for future storage backends (Database, Cloud) — mostly unimplemented
+- `app/providers/` only contains `llm/` subpackage (OpenAI-compatible + Ollama). Stub ABCs removed.
 - Window state persists to `app_state.json` (position, size, opacity, last selected file)
 - `.env` is committed to repo (contains API key placeholders, currently empty)
 - `config.yaml` is writable at runtime (folder icons stored there)

@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
 
 from app.config import config
 

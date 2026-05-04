@@ -32,7 +32,7 @@ from app.constants import AppConstants, Messages
 from app.services.clipboard_service import clipboard_service
 from app.services.export_service import export_service
 from app.services.file_service import PromptFile, file_service
-from app.services.search_service import SearchResult
+from app.services.search_service import SearchResult, search_service
 from app.services.config_service import config_service
 from app.services.state_service import state_service
 from app.ui.dialogs import FolderDialog, PromptDialog

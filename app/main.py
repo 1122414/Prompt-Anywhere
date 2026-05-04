@@ -46,16 +46,38 @@ def _initialize_app():
             autostart_service.set_autostart(True)
 
 
+def _check_existing_data():
+    from app.services.startup_service import startup_service
+    from PySide6.QtWidgets import QMessageBox
+    if startup_service.found_existing_data is not None:
+        old = startup_service.found_existing_data
+        reply = QMessageBox.question(
+            None,
+            "发现历史数据",
+            f"检测到旧版本数据\n\n位置: {old}\n\n是否自动导入到当前版本？\n（导入后旧数据不受影响）",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if reply == QMessageBox.Yes:
+            count = startup_service.import_existing_data()
+            if count > 0:
+                from app.services.search_service import search_service
+                search_service.rebuild_index()
+                QMessageBox.information(None, "导入完成", f"已导入 {count} 个提示词文件")
+
+
 def main():
     _setup_logging()
     _initialize_app()
-    
+
     app = QApplication(sys.argv)
     app.setApplicationName(config.app_name)
     app.setApplicationVersion(config.app_version)
     app.setQuitOnLastWindowClosed(False)
     from app.utils.icon_utils import create_app_icon
     app.setWindowIcon(create_app_icon())
+
+    _check_existing_data()
 
     main_window = MainWindow()
     quick_window = QuickWindow()

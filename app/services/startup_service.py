@@ -26,6 +26,7 @@ class StartupService(Singleton):
 
     def _init(self):
         self._is_first_launch = False
+        self._found_existing_data: Path | None = None
 
     def initialize(self):
         self._is_first_launch = not config.data_dir.exists()
@@ -33,15 +34,60 @@ class StartupService(Singleton):
         self._ensure_directories()
         self._ensure_config_file()
 
-        if self._is_first_launch or not self._has_user_content():
-            self.create_default_categories()
-            self.create_welcome_file()
+        if self._is_first_launch:
+            self._scan_for_existing_data()
+
+        if self._is_first_launch and self._found_existing_data is None:
+            if not self._has_user_content():
+                self.create_default_categories()
+                self.create_welcome_file()
 
         logger.info("Startup initialization complete. first_launch=%s", self._is_first_launch)
 
     @property
     def is_first_launch(self) -> bool:
         return self._is_first_launch
+
+    @property
+    def found_existing_data(self) -> Path | None:
+        return self._found_existing_data
+
+    def _scan_for_existing_data(self):
+        current = Path.cwd().resolve()
+        parent = current.parent
+        candidates = []
+        for d in parent.iterdir():
+            if not d.is_dir() or d == current:
+                continue
+            name = d.name.lower()
+            if "prompt" in name and "anywhere" in name:
+                candidates.append(d)
+        candidates.insert(0, current)
+        for candidate in candidates:
+            data_dir = candidate / "data"
+            if data_dir.exists() and data_dir != config.data_dir:
+                for item in data_dir.rglob("*"):
+                    if item.is_file() and item.suffix.lower() in config.supported_prompt_extensions:
+                        self._found_existing_data = data_dir
+                        logger.info("Found existing data at %s", data_dir)
+                        return
+
+    def import_existing_data(self) -> int:
+        if self._found_existing_data is None or not self._found_existing_data.exists():
+            return 0
+        config.data_dir.mkdir(parents=True, exist_ok=True)
+        imported = 0
+        for item in self._found_existing_data.rglob("*"):
+            if item.is_file():
+                rel = item.relative_to(self._found_existing_data)
+                dest = config.data_dir / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if not dest.exists():
+                    import shutil
+                    shutil.copy2(item, dest)
+                    imported += 1
+        logger.info("Imported %d files from %s", imported, self._found_existing_data)
+        return imported
 
     def _ensure_directories(self) -> None:
         backup_dir = Path("./backups").resolve()

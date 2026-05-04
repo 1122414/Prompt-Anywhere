@@ -67,8 +67,5 @@ class EmbeddingService:
             return result[0]
         return None
 
-    def clear_cache(self):
-        self._cache.clear()
-
 
 embedding_service = EmbeddingService()

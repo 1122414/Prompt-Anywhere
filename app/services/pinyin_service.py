@@ -62,8 +62,5 @@ class PinyinService:
             logger.warning(f"Failed to build pinyin fields: {e}")
             return {"full": "", "initials": "", "tokens": []}
 
-    def clear_cache(self):
-        self._cache.clear()
-
 
 pinyin_service = PinyinService()

@@ -55,10 +55,5 @@ class UsageService:
     def get_stats(self, rel_path: str) -> Dict:
         return self._data.get(rel_path, {"copy_count": 0, "last_used_at": None, "rating": 0})
 
-    def remove_file(self, rel_path: str):
-        if rel_path in self._data:
-            del self._data[rel_path]
-            self._save()
-
 
 usage_service = UsageService()

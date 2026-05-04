@@ -581,7 +581,7 @@ class MainWindow(QMainWindow, SearchMixin):
         prompt = file_service.create_prompt(cat, name, ".md", content)
         if prompt:
             search_service.rebuild_index()
-            self.tree_panel.add_prompt_item(cat, name, prompt.path)
+            self.tree_panel.add_prompt_item(cat, prompt)
             notification_service.success(self, "已从剪贴板创建 Prompt")
         else:
             notification_service.error(self, "创建失败")
@@ -843,10 +843,6 @@ class MainWindow(QMainWindow, SearchMixin):
 
         close_to_tray = config_service.get("behavior.close_to_tray", True)
         if close_to_tray:
-            behavior = state_service.get_preference("close_behavior", "minimize")
-            if behavior == "quit":
-                self._force_quit()
-                return
             self.hide()
         else:
             self._force_quit()

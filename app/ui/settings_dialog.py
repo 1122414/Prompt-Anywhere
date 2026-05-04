@@ -45,6 +45,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._create_search_tab(), "搜索设置")
         self.tabs.addTab(self._create_semantic_search_tab(), "语义搜索")
         self.tabs.addTab(self._create_ai_template_tab(), "AI模板助手")
+        self.tabs.addTab(self._create_model_tab(), "模型设置")
         self.tabs.addTab(self._create_about_tab(), "关于")
 
         layout.addWidget(self.tabs)
@@ -87,52 +88,22 @@ class SettingsDialog(QDialog):
     def _create_paths_tab(self):
         tab = QWidget()
         layout = QFormLayout(tab)
-
-        data_layout = QHBoxLayout()
-        self.data_dir_input = QLineEdit()
-        self.data_dir_input.setPlaceholderText("./data")
-        data_layout.addWidget(self.data_dir_input)
-        data_browse = QPushButton("浏览")
-        data_browse.clicked.connect(
-            lambda: self._browse_dir(self.data_dir_input)
-        )
-        data_layout.addWidget(data_browse)
-        layout.addRow("数据目录:", data_layout)
-
-        export_layout = QHBoxLayout()
-        self.export_dir_input = QLineEdit()
-        self.export_dir_input.setPlaceholderText("./exports")
-        export_layout.addWidget(self.export_dir_input)
-        export_browse = QPushButton("浏览")
-        export_browse.clicked.connect(
-            lambda: self._browse_dir(self.export_dir_input)
-        )
-        export_layout.addWidget(export_browse)
-        layout.addRow("导出目录:", export_layout)
-
-        backup_layout = QHBoxLayout()
-        self.backup_dir_input = QLineEdit()
-        self.backup_dir_input.setPlaceholderText("./backups")
-        backup_layout.addWidget(self.backup_dir_input)
-        backup_browse = QPushButton("浏览")
-        backup_browse.clicked.connect(
-            lambda: self._browse_dir(self.backup_dir_input)
-        )
-        backup_layout.addWidget(backup_browse)
-        layout.addRow("备份目录:", backup_layout)
-
-        log_layout = QHBoxLayout()
-        self.log_dir_input = QLineEdit()
-        self.log_dir_input.setPlaceholderText("./logs")
-        log_layout.addWidget(self.log_dir_input)
-        log_browse = QPushButton("浏览")
-        log_browse.clicked.connect(
-            lambda: self._browse_dir(self.log_dir_input)
-        )
-        log_layout.addWidget(log_browse)
-        layout.addRow("日志目录:", log_layout)
-
+        layout.addRow("数据目录:", self._create_path_row("data_dir", "./data"))
+        layout.addRow("导出目录:", self._create_path_row("export_dir", "./exports"))
+        layout.addRow("备份目录:", self._create_path_row("backup_dir", "./backups"))
+        layout.addRow("日志目录:", self._create_path_row("log_dir", "./logs"))
         return tab
+
+    def _create_path_row(self, attr_name: str, placeholder: str):
+        row_layout = QHBoxLayout()
+        input_widget = QLineEdit()
+        input_widget.setPlaceholderText(placeholder)
+        setattr(self, f"{attr_name}_input", input_widget)
+        row_layout.addWidget(input_widget)
+        browse_btn = QPushButton("浏览")
+        browse_btn.clicked.connect(lambda checked=None, w=input_widget: self._browse_dir(w))
+        row_layout.addWidget(browse_btn)
+        return row_layout
 
     def _create_hotkeys_tab(self):
         tab = QWidget()
@@ -223,7 +194,7 @@ class SettingsDialog(QDialog):
             backup_list = "\n".join([f"{i+1}. {b.name}" for i, b in enumerate(backups)])
             reply = QMessageBox.question(
                 self, "备份管理",
-                f"共 {len(backups)} 个备份:\n\n{backup_list}\n\n是否清理旧备份（保留最新 {config.app_name} 个）？",
+                f"共 {len(backups)} 个备份:\n\n{backup_list}\n\n是否清理旧备份（保留最新备份）？",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             )
             if reply == QMessageBox.Yes:
@@ -342,6 +313,36 @@ class SettingsDialog(QDialog):
         self.ai_template_detection_mode_input = QLineEdit()
         self.ai_template_detection_mode_input.setPlaceholderText("rule / ai / hybrid")
         layout.addRow("检测模式:", self.ai_template_detection_mode_input)
+
+        return tab
+
+    def _create_model_tab(self):
+        tab = QWidget()
+        layout = QFormLayout(tab)
+        layout.addRow(QLabel("以下为通用模型配置，修改后需重启应用"))
+
+        self.model_provider_input = QLineEdit()
+        self.model_provider_input.setPlaceholderText("如 openai / ollama")
+        layout.addRow("模型提供商:", self.model_provider_input)
+
+        self.model_name_input = QLineEdit()
+        self.model_name_input.setPlaceholderText("如 gpt-4 / llama3")
+        layout.addRow("模型名称:", self.model_name_input)
+
+        self.model_api_key_input = QLineEdit()
+        self.model_api_key_input.setEchoMode(QLineEdit.Password)
+        self.model_api_key_input.setPlaceholderText("API Key")
+        layout.addRow("API Key:", self.model_api_key_input)
+
+        self.model_base_url_input = QLineEdit()
+        self.model_base_url_input.setPlaceholderText("如 https://api.openai.com/v1")
+        layout.addRow("API 地址:", self.model_base_url_input)
+
+        self.model_temperature_spin = QSpinBox()
+        self.model_temperature_spin.setMinimum(0)
+        self.model_temperature_spin.setMaximum(20)
+        self.model_temperature_spin.setSuffix(" * 0.1")
+        layout.addRow("温度参数:", self.model_temperature_spin)
 
         return tab
 
@@ -486,6 +487,12 @@ class SettingsDialog(QDialog):
         self.ai_template_temperature_spin.setValue(int(config.ai_template_temperature * 10))
         self.ai_template_detection_mode_input.setText(config.ai_template_detection_mode)
 
+        self.model_provider_input.setText(config.model_provider)
+        self.model_name_input.setText(config.model_name)
+        self.model_api_key_input.setText(config.model_api_key)
+        self.model_base_url_input.setText(config.model_base_url)
+        self.model_temperature_spin.setValue(int(config.model_temperature * 10))
+
     def _on_accept(self):
         from app.services.config_service import config_service
         from app.services.state_service import state_service
@@ -547,5 +554,11 @@ class SettingsDialog(QDialog):
         state_service.set_preference("ai_template_model", self.ai_template_model_input.text())
         state_service.set_preference("ai_template_temperature", self.ai_template_temperature_spin.value() / 10.0)
         state_service.set_preference("ai_template_detection_mode", self.ai_template_detection_mode_input.text())
+
+        state_service.set_preference("model_provider", self.model_provider_input.text())
+        state_service.set_preference("model_name", self.model_name_input.text())
+        state_service.set_preference("model_api_key", self.model_api_key_input.text())
+        state_service.set_preference("model_base_url", self.model_base_url_input.text())
+        state_service.set_preference("model_temperature", self.model_temperature_spin.value() / 10.0)
 
         self.accept()

@@ -76,31 +76,5 @@ class ComposerService(Singleton):
 
         return separator.join(parts)
 
-    def save(self, name: str) -> Tuple[bool, str]:
-        content = self.build()
-        if not content:
-            return False, "No content to save"
-        try:
-            save_dir = config.composer_save_dir
-            save_dir.mkdir(parents=True, exist_ok=True)
-            file_path = save_dir / f"{name}.md"
-            file_path.write_text(content, encoding=config.file_encoding)
-            return True, str(file_path)
-        except Exception as e:
-            logger.warning(f"Failed to save composed content: {e}")
-            return False, str(e)
-
-    def export(self, dest_path: Path) -> Tuple[bool, str]:
-        content = self.build()
-        if not content:
-            return False, "No content to export"
-        try:
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            dest_path.write_text(content, encoding=config.file_encoding)
-            return True, str(dest_path)
-        except Exception as e:
-            logger.warning(f"Failed to export composed content: {e}")
-            return False, str(e)
-
 
 composer_service = ComposerService()

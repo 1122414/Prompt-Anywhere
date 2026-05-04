@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Dict
 
 from app.config import config
+from app.utils.json_store import JsonFileStore
 from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
@@ -18,22 +19,11 @@ class UsageService(Singleton):
 
     def _ensure_loaded(self):
         config.knowledge_base_dir.mkdir(parents=True, exist_ok=True)
-        if self._usage_file.exists():
-            try:
-                with open(self._usage_file, "r", encoding="utf-8") as f:
-                    self._data = json.load(f)
-                if not isinstance(self._data, dict):
-                    self._data = {}
-            except Exception as e:
-                logger.warning(f"Failed to load usage data: {e}")
-                self._data = {}
+        data = JsonFileStore.load(self._usage_file, {})
+        self._data = data if isinstance(data, dict) else {}
 
     def _save(self):
-        try:
-            with open(self._usage_file, "w", encoding="utf-8") as f:
-                json.dump(self._data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"Failed to save usage data: {e}")
+        JsonFileStore.save(self._usage_file, self._data)
 
     def record_copy(self, rel_path: str):
         if rel_path not in self._data:

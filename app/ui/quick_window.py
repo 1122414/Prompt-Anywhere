@@ -70,36 +70,6 @@ class QuickWindow(QMainWindow, SearchMixin):
             self.search_input.setFocus()
             self.search_input.selectAll()
 
-    def _on_search(self, text: str):
-        self._last_search_keyword = text.strip()
-        self._search_timer.stop()
-        if not self._last_search_keyword:
-            self.search_result_panel.clear_results()
-            return
-        self._search_timer.start(config.search_debounce_ms)
-
-    def _do_search(self):
-        keyword = self._last_search_keyword
-        if not keyword:
-            self.search_result_panel.clear_results()
-            return
-        search_id, worker = search_service.search_async(keyword, config.search_case_insensitive)
-        worker.setParent(None)
-        worker.results_ready.connect(self._on_search_results_ready)
-        worker.finished.connect(worker.deleteLater)
-        worker.start()
-        self._search_worker = worker
-
-    def _on_search_results_ready(self, search_id: int, results: list[SearchResult]):
-        if search_id != search_service.get_current_search_id():
-            return
-        if not self._last_search_keyword:
-            self.search_result_panel.clear_results()
-            return
-        self.search_result_panel.set_results(results, self._last_search_keyword)
-        if self.search_result_panel.result_list.count() > 0:
-        self.search_result_panel.select_first()
-
     def _clear_search_results(self):
         self.search_result_panel.clear_results()
 

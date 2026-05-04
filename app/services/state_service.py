@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict
 
 from app.config import config
+from app.utils.json_store import JsonFileStore
 from app.utils.singleton import Singleton
 
 logger = logging.getLogger(__name__)
@@ -16,22 +17,11 @@ class StateService(Singleton):
 
     def _load_state(self):
         state_path = config.user_state_path
-        if state_path.exists():
-            try:
-                with open(state_path, "r", encoding="utf-8") as f:
-                    self._state = json.load(f) or {}
-            except Exception as e:
-                logger.warning(f"Failed to load state: {e}")
-                self._state = {}
+        data = JsonFileStore.load(state_path, {})
+        self._state = data if isinstance(data, dict) else {}
 
     def _save_state(self):
-        state_path = config.user_state_path
-        try:
-            state_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(state_path, "w", encoding="utf-8") as f:
-                json.dump(self._state, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.warning(f"Failed to save state: {e}")
+        JsonFileStore.save(config.user_state_path, self._state)
 
     def get_window_state(self) -> Dict[str, Any]:
         return self._state.get("window", {})

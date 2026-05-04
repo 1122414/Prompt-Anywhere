@@ -17,3 +17,4 @@ class Messages:
     CREATE_FAILED = "创建失败"
     SETTINGS_SAVED = "设置已保存"
     BATCH_DELETE_WARNING = "文件将移至回收站，可在回收站中恢复"
+    TEMPLATE_DIR_NAME = "我的模板"

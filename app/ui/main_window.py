@@ -350,7 +350,7 @@ class MainWindow(QMainWindow, SearchMixin):
         if not ok or not name:
             return
 
-        template_dir = config.data_dir / "我的模板"
+        template_dir = config.data_dir / Messages.TEMPLATE_DIR_NAME
         template_dir.mkdir(parents=True, exist_ok=True)
         template_path = template_dir / f"{name}.md"
         if template_path.exists():
@@ -364,8 +364,8 @@ class MainWindow(QMainWindow, SearchMixin):
                 return
 
         template_path.write_text(content, encoding=config.file_encoding)
-        search_service.update_index_file(f"我的模板/{name}.md")
-        QMessageBox.information(self, "保存成功", f"模板已保存到：我的模板/{name}.md")
+        search_service.update_index_file(f"{Messages.TEMPLATE_DIR_NAME}/{name}.md")
+        QMessageBox.information(self, "保存成功", f"模板已保存到：{Messages.TEMPLATE_DIR_NAME}/{name}.md")
 
     def _select_import_category(self) -> str:
         from PySide6.QtWidgets import QInputDialog

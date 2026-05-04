@@ -727,6 +727,13 @@ class TreePanel(QWidget):
         version_list.currentRowChanged.connect(lambda _: on_select())
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok)
+        restore_btn = buttons.addButton("恢复此版本", QDialogButtonBox.ActionRole)
+        def do_restore():
+            idx = version_list.currentRow()
+            if 0 <= idx < len(versions):
+                ok = history_service.restore_version(prompt_file.path, versions[idx]["path"])
+                QMessageBox.information(dialog, "恢复版本", "版本已恢复" if ok else "恢复失败")
+        restore_btn.clicked.connect(do_restore)
         buttons.accepted.connect(dialog.accept)
         layout.addWidget(buttons)
         dialog.exec()

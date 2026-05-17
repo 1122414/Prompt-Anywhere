@@ -100,6 +100,15 @@ _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "TEMPLATE_DIALOG_HEIGHT": ["ui", "template_dialog_height"],
     "BUILTIN_TEMPLATE_DIR": ["builtin_templates", "dir"],
     "ENABLE_BUILTIN_TEMPLATES": ["builtin_templates", "enabled"],
+    "UI_PRIMARY_COLOR": ["ui", "primary_color"],
+    "UI_PRIMARY_HOVER": ["ui", "primary_hover"],
+    "UI_SELECTED_BG": ["ui", "selected_bg"],
+    "UI_SELECTED_BORDER": ["ui", "selected_border"],
+    "UI_SIDEBAR_WIDTH": ["ui", "sidebar_width"],
+    "UI_SIDEBAR_COLLAPSED_WIDTH": ["ui", "sidebar_collapsed_width"],
+    "UI_BORDER_RADIUS": ["ui", "border_radius"],
+    "UI_FONT_SIZE_BASE": ["ui", "font_size_base"],
+    "UI_FONT_SIZE_SMALL": ["ui", "font_size_small"],
 }
 
 
@@ -405,6 +414,42 @@ class Config(Singleton):
     def enable_file_watcher(self) -> bool:
         return self._get_env("ENABLE_FILE_WATCHER", True)
 
+    @property
+    def ui_primary_color(self) -> str:
+        return self._get_env("UI_PRIMARY_COLOR", "#1890ff")
+
+    @property
+    def ui_primary_hover(self) -> str:
+        return self._get_env("UI_PRIMARY_HOVER", "#40a9ff")
+
+    @property
+    def ui_selected_bg(self) -> str:
+        return self._get_env("UI_SELECTED_BG", "#e6f7ff")
+
+    @property
+    def ui_selected_border(self) -> str:
+        return self._get_env("UI_SELECTED_BORDER", "#1890ff")
+
+    @property
+    def ui_sidebar_width(self) -> int:
+        return int(self._get_env("UI_SIDEBAR_WIDTH", "260"))
+
+    @property
+    def ui_sidebar_collapsed_width(self) -> int:
+        return int(self._get_env("UI_SIDEBAR_COLLAPSED_WIDTH", "50"))
+
+    @property
+    def ui_border_radius(self) -> int:
+        return int(self._get_env("UI_BORDER_RADIUS", "6"))
+
+    @property
+    def ui_font_size_base(self) -> int:
+        return int(self._get_env("UI_FONT_SIZE_BASE", "13"))
+
+    @property
+    def ui_font_size_small(self) -> int:
+        return int(self._get_env("UI_FONT_SIZE_SMALL", "12"))
+
     # ============ 模型配置 ============
     @property
     def model_provider(self) -> str:
@@ -466,6 +511,43 @@ class Config(Singleton):
     def composer_export_dir(self) -> Path:
         path = self._get_env("COMPOSER_EXPORT_DIR", "./exports")
         return Path(path).resolve()
+
+    # ============ UI 主题配置 ============
+    @property
+    def ui_primary_color(self) -> str:
+        return self._get_env("UI_PRIMARY_COLOR", "#1890ff")
+
+    @property
+    def ui_primary_hover(self) -> str:
+        return self._get_env("UI_PRIMARY_HOVER", "#40a9ff")
+
+    @property
+    def ui_selected_bg(self) -> str:
+        return self._get_env("UI_SELECTED_BG", "#e6f7ff")
+
+    @property
+    def ui_selected_border(self) -> str:
+        return self._get_env("UI_SELECTED_BORDER", "#1890ff")
+
+    @property
+    def ui_sidebar_width(self) -> int:
+        return int(self._get_env("UI_SIDEBAR_WIDTH", "260"))
+
+    @property
+    def ui_sidebar_collapsed_width(self) -> int:
+        return int(self._get_env("UI_SIDEBAR_COLLAPSED_WIDTH", "50"))
+
+    @property
+    def ui_border_radius(self) -> int:
+        return int(self._get_env("UI_BORDER_RADIUS", "6"))
+
+    @property
+    def ui_font_size_base(self) -> int:
+        return int(self._get_env("UI_FONT_SIZE_BASE", "13"))
+
+    @property
+    def ui_font_size_small(self) -> int:
+        return int(self._get_env("UI_FONT_SIZE_SMALL", "12"))
 
     # ============ UI 按钮显示配置 ============
     @property

@@ -1,6 +1,8 @@
 from PySide6.QtCore import QPropertyAnimation, QTimer, Qt, QPoint
 from PySide6.QtWidgets import QLabel, QWidget
 
+from app.ui.theme import current_palette
+
 
 class Toast(QWidget):
     _active_toasts = []
@@ -11,17 +13,18 @@ class Toast(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
 
+        palette = current_palette()
         colors = {
-            "success": ("#4CAF50", "#fff"),
-            "warning": ("#FF9800", "#fff"),
-            "error": ("#F44336", "#fff"),
+            "success": (palette["success"], palette["surface_elevated"]),
+            "warning": (palette["warning"], palette["surface_elevated"]),
+            "error": (palette["error"], palette["surface_elevated"]),
         }
         bg, fg = colors.get(style, colors["success"])
 
         self.label = QLabel(message, self)
         self.label.setStyleSheet(
             f"QLabel {{ background: {bg}; color: {fg}; padding: 8px 20px; "
-            f"border-radius: 6px; font-size: 13px; }}"
+            f"border-radius: 8px; font-size: 13px; font-weight: 600; }}"
         )
         self.label.adjustSize()
         self.resize(self.label.sizeHint())

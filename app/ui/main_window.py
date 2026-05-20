@@ -40,6 +40,7 @@ from app.ui.dialogs import FolderDialog, PromptDialog
 from app.ui.panels import EditorPanel
 from app.ui.search_mixin import SearchMixin
 from app.ui.search_popup import SearchPopupWindow
+from app.ui.theme import app_stylesheet
 from app.ui.tray import TrayManager
 from app.ui.tree_panel import TreePanel
 
@@ -180,6 +181,7 @@ class MainWindow(QMainWindow, SearchMixin):
 
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(12, 8, 12, 8)
+        toolbar.setSpacing(10)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(Messages.SEARCH_PLACEHOLDER)
@@ -188,6 +190,7 @@ class MainWindow(QMainWindow, SearchMixin):
         toolbar.addWidget(self.search_input)
 
         self.pin_btn = QPushButton("📌 置顶" if self._always_on_top else "置顶")
+        self.pin_btn.setMinimumWidth(72)
         self.pin_btn.setCheckable(True)
         self.pin_btn.setChecked(self._always_on_top)
         self.pin_btn.clicked.connect(self._toggle_always_on_top)
@@ -197,11 +200,13 @@ class MainWindow(QMainWindow, SearchMixin):
         self.import_menu.addAction("导入文件", self._on_import_file)
         self.import_menu.addAction("导入文件夹", self._on_import_folder)
 
-        self.import_btn = QPushButton("导入 ▾")
+        self.import_btn = QPushButton("导入")
+        self.import_btn.setMinimumWidth(72)
         self.import_btn.setMenu(self.import_menu)
         toolbar.addWidget(self.import_btn)
 
         self.clipboard_create_btn = QPushButton("从剪贴板新建")
+        self.clipboard_create_btn.setMinimumWidth(128)
         self.clipboard_create_btn.clicked.connect(self._on_create_from_clipboard)
         toolbar.addWidget(self.clipboard_create_btn)
 
@@ -212,26 +217,31 @@ class MainWindow(QMainWindow, SearchMixin):
         if config.enable_builtin_templates:
             self.template_menu.addAction("导入内置模板", self._on_import_builtin)
 
-        self.template_btn = QPushButton("模板 ▾")
+        self.template_btn = QPushButton("模板")
+        self.template_btn.setMinimumWidth(72)
         self.template_btn.setMenu(self.template_menu)
         toolbar.addWidget(self.template_btn)
 
         if config.show_composer_button:
             self.composer_btn = QPushButton("组合器")
+            self.composer_btn.setMinimumWidth(82)
             self.composer_btn.clicked.connect(self._on_open_composer)
             toolbar.addWidget(self.composer_btn)
 
-        toolbar.addWidget(QLabel("透明度:"))
+        toolbar.addSpacing(8)
+        opacity_label = QLabel("透明度:")
+        opacity_label.setMinimumWidth(52)
+        toolbar.addWidget(opacity_label)
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setMinimum(int(config.min_window_opacity * 100))
         self.opacity_slider.setMaximum(int(config.max_window_opacity * 100))
         self.opacity_slider.setValue(int(self._window_opacity * 100))
-        self.opacity_slider.setFixedWidth(100)
+        self.opacity_slider.setFixedWidth(126)
         self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
         toolbar.addWidget(self.opacity_slider)
 
         self.settings_btn = QPushButton("⚙")
-        self.settings_btn.setFixedWidth(30)
+        self.settings_btn.setFixedWidth(36)
         self.settings_btn.setToolTip("设置")
         self.settings_btn.clicked.connect(self._on_settings)
         toolbar.addWidget(self.settings_btn)
@@ -244,6 +254,7 @@ class MainWindow(QMainWindow, SearchMixin):
         self.tree_panel.setMinimumWidth(220)
         self.tree_panel.setMaximumWidth(400)
         self.tree_panel.prompt_selected.connect(self._on_prompt_selected)
+        self.tree_panel.folder_selected.connect(self._on_folder_selected)
         self.tree_panel.new_folder_requested.connect(self._on_new_folder)
         self.tree_panel.new_prompt_requested.connect(self._on_new_prompt)
         self.tree_panel.rename_folder_requested.connect(self._on_rename_folder)
@@ -397,6 +408,13 @@ class MainWindow(QMainWindow, SearchMixin):
         from app.ui.settings_dialog import SettingsDialog
         dialog = SettingsDialog(self)
         if dialog.exec() == SettingsDialog.Accepted:
+            QApplication.instance().setStyleSheet(app_stylesheet())
+            self.tree_panel.apply_theme()
+            self.editor_panel.apply_theme()
+            self.search_popup.panel.apply_theme()
+            if hasattr(self, "quick_window") and self.quick_window:
+                self.quick_window.apply_theme()
+            self._setup_shortcuts()
             self.statusBar().showMessage("设置已保存", 2000)
             self.tree_panel.load_tree()
             self.restart_hotkey()
@@ -441,11 +459,32 @@ class MainWindow(QMainWindow, SearchMixin):
         self._setup_hotkey()
 
     def _setup_shortcuts(self):
-        self.search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
-        self.search_shortcut.activated.connect(self.search_input.setFocus)
+        self._bind_shortcut("search_shortcut", "Ctrl+F", self.search_input.setFocus)
+        self._bind_shortcut("save_shortcut", "Ctrl+S", self._on_save)
+        self._bind_shortcut(
+            "zoom_in_shortcut",
+            state_service.get_preference("zoom_in_shortcut", "Ctrl+="),
+            self.editor_panel.zoom_in,
+        )
+        self._bind_shortcut(
+            "zoom_out_shortcut",
+            state_service.get_preference("zoom_out_shortcut", "Ctrl+-"),
+            self.editor_panel.zoom_out,
+        )
+        self._bind_shortcut(
+            "zoom_reset_shortcut",
+            state_service.get_preference("zoom_reset_shortcut", "Ctrl+0"),
+            self.editor_panel.reset_zoom,
+        )
 
-        self.save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
-        self.save_shortcut.activated.connect(self._on_save)
+    def _bind_shortcut(self, attr_name: str, key_sequence: str, callback):
+        shortcut = getattr(self, attr_name, None)
+        if shortcut is None:
+            shortcut = QShortcut(QKeySequence(key_sequence), self)
+            shortcut.activated.connect(callback)
+            setattr(self, attr_name, shortcut)
+        else:
+            shortcut.setKey(QKeySequence(key_sequence))
 
     def _load_data(self):
         self.tree_panel.load_tree()
@@ -478,6 +517,17 @@ class MainWindow(QMainWindow, SearchMixin):
             rel = prompt.path.relative_to(config.data_dir).as_posix()
             state_service.set_last_selected_file(rel)
             state_service.add_recent_file(rel)
+
+    def _on_folder_selected(self, folder_path: str):
+        if self.editor_panel.is_modified():
+            result = self.editor_panel.check_unsaved()
+            if result == AppConstants.CANCEL:
+                return
+            elif result == AppConstants.SAVE:
+                self._on_save()
+        prompts = self.tree_panel.get_prompts_for_folder(folder_path)
+        self.editor_panel.show_folder_preview(folder_path, prompts)
+        state_service.set_last_selected_category(folder_path)
 
     def _on_item_moved(self, source_path: str, target_path: str):
         current = self.editor_panel.get_current_prompt()

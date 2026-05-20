@@ -2,6 +2,7 @@ import logging
 
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from app.config import config
+from app.ui.theme import THEME_OPTIONS, muted_label_stylesheet
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,11 @@ class SettingsDialog(QDialog):
     def _create_general_tab(self):
         tab = QWidget()
         layout = QFormLayout(tab)
+
+        self.theme_combo = QComboBox()
+        for key, label in THEME_OPTIONS.items():
+            self.theme_combo.addItem(label, key)
+        layout.addRow("界面主题:", self.theme_combo)
 
         self.start_minimized_cb = QCheckBox("启动后最小化到托盘")
         layout.addRow(self.start_minimized_cb)
@@ -118,7 +125,19 @@ class SettingsDialog(QDialog):
         layout.addRow("主窗口快捷键:", self.main_hotkey_input)
 
         hint_label = QLabel("提示: 快捷键格式为 modifier+key，例如 ctrl+alt+p")
-        hint_label.setStyleSheet("color: #888;")
+        self.zoom_in_shortcut_input = QLineEdit()
+        self.zoom_in_shortcut_input.setPlaceholderText("Ctrl+=")
+        layout.addRow("放大快捷键:", self.zoom_in_shortcut_input)
+
+        self.zoom_out_shortcut_input = QLineEdit()
+        self.zoom_out_shortcut_input.setPlaceholderText("Ctrl+-")
+        layout.addRow("缩小快捷键:", self.zoom_out_shortcut_input)
+
+        self.zoom_reset_shortcut_input = QLineEdit()
+        self.zoom_reset_shortcut_input.setPlaceholderText("Ctrl+0")
+        layout.addRow("重置缩放快捷键:", self.zoom_reset_shortcut_input)
+
+        hint_label.setStyleSheet(muted_label_stylesheet())
         layout.addRow(hint_label)
 
         return tab
@@ -400,6 +419,11 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self):
         from app.services.config_service import config_service
+        from app.services.state_service import state_service
+
+        theme = state_service.get_preference("ui_theme", "light")
+        theme_index = self.theme_combo.findData(theme)
+        self.theme_combo.setCurrentIndex(theme_index if theme_index >= 0 else 0)
 
         self.start_minimized_cb.setChecked(
             config_service.get("behavior.start_minimized", False)
@@ -428,6 +452,9 @@ class SettingsDialog(QDialog):
         self.main_hotkey_input.setText(
             config_service.get("behavior.main_hotkey", "ctrl+alt+m")
         )
+        self.zoom_in_shortcut_input.setText(state_service.get_preference("zoom_in_shortcut", "Ctrl+="))
+        self.zoom_out_shortcut_input.setText(state_service.get_preference("zoom_out_shortcut", "Ctrl+-"))
+        self.zoom_reset_shortcut_input.setText(state_service.get_preference("zoom_reset_shortcut", "Ctrl+0"))
 
         self.always_on_top_cb.setChecked(config.always_on_top)
         self.opacity_slider.setValue(int(config.default_window_opacity * 100))
@@ -497,6 +524,8 @@ class SettingsDialog(QDialog):
         from app.services.config_service import config_service
         from app.services.state_service import state_service
 
+        state_service.set_preference("ui_theme", self.theme_combo.currentData())
+
         config_service.set("behavior.start_minimized", self.start_minimized_cb.isChecked())
         config_service.set("behavior.close_to_tray", self.close_to_tray_cb.isChecked())
         state_service.set_preference("copy_auto_hide", self.copy_auto_hide_cb.isChecked())
@@ -516,6 +545,9 @@ class SettingsDialog(QDialog):
 
         config_service.set("behavior.hotkey", self.hotkey_input.text())
         config_service.set("behavior.main_hotkey", self.main_hotkey_input.text())
+        state_service.set_preference("zoom_in_shortcut", self.zoom_in_shortcut_input.text() or "Ctrl+=")
+        state_service.set_preference("zoom_out_shortcut", self.zoom_out_shortcut_input.text() or "Ctrl+-")
+        state_service.set_preference("zoom_reset_shortcut", self.zoom_reset_shortcut_input.text() or "Ctrl+0")
 
         config_service.set("window.always_on_top", self.always_on_top_cb.isChecked())
         config_service.set("window.opacity", self.opacity_slider.value() / 100.0)

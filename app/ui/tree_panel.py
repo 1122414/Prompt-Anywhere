@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QSplitter,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -19,6 +20,7 @@ from app.config import config
 from app.services.file_service import PromptFile, file_service
 from app.services.search_service import search_service
 from app.services.state_service import state_service
+from app.ui.theme import current_palette, tree_stylesheet
 
 _ICON_KEYS = [
     "SP_DirIcon",
@@ -45,12 +47,13 @@ class DraggableTreeWidget(QTreeWidget):
         self.setSelectionMode(QTreeWidget.ExtendedSelection)
 
     def _get_item_path(self, item):
+        from app.constants import Messages
         if not item:
             return ""
         parts = []
         while item:
-            text = item.text(0)
-            if text != "全部":
+            text = self.parent()._item_name(item) if self.parent() else item.text(0)
+            if text not in (Messages.ALL_PROMPTS, Messages.FAVORITES, Messages.RECENTLY_USED):
                 parts.insert(0, text)
             item = item.parent()
         return "/".join(parts)
@@ -60,9 +63,28 @@ class DraggableTreeWidget(QTreeWidget):
             return False
         return item.data(0, Qt.UserRole + 1) == "folder"
 
+    def dragMoveEvent(self, event):
+        target = self.itemAt(event.position().toPoint())
+        dragged_items = self.selectedItems()
+        if not target or not dragged_items:
+            event.ignore()
+            return
+        dragged = dragged_items[0]
+        dragged_data = dragged.data(0, Qt.UserRole)
+        target_data = target.data(0, Qt.UserRole)
+        same_folder_file_reorder = (
+            isinstance(dragged_data, PromptFile)
+            and isinstance(target_data, PromptFile)
+            and dragged.parent() == target.parent()
+        )
+        if same_folder_file_reorder or self._is_folder_item(target):
+            event.accept()
+            return
+        event.ignore()
+
     def dropEvent(self, event):
         target = self.itemAt(event.position().toPoint())
-        if not target or not self._is_folder_item(target):
+        if not target:
             event.ignore()
             return
 
@@ -76,9 +98,45 @@ class DraggableTreeWidget(QTreeWidget):
             event.ignore()
             return
 
+        dragged_data = dragged.data(0, Qt.UserRole)
+        target_data = target.data(0, Qt.UserRole)
+        if isinstance(dragged_data, PromptFile) and isinstance(target_data, PromptFile):
+            source_parent = dragged.parent()
+            target_parent = target.parent()
+            if source_parent == target_parent:
+                source_path = self._get_item_path(dragged)
+                folder_path = self._get_item_path(source_parent) if source_parent else ""
+                drop_below = event.position().toPoint().y() > self.visualItemRect(target).center().y()
+                if source_parent:
+                    source_index = source_parent.indexOfChild(dragged)
+                    target_index = source_parent.indexOfChild(target)
+                    moved_item = source_parent.takeChild(source_index)
+                    if source_index < target_index:
+                        target_index -= 1
+                    insert_index = target_index + 1 if drop_below else target_index
+                    source_parent.insertChild(insert_index, moved_item)
+                else:
+                    source_index = self.indexOfTopLevelItem(dragged)
+                    target_index = self.indexOfTopLevelItem(target)
+                    moved_item = self.takeTopLevelItem(source_index)
+                    if source_index < target_index:
+                        target_index -= 1
+                    insert_index = target_index + 1 if drop_below else target_index
+                    self.insertTopLevelItem(insert_index, moved_item)
+                self.setCurrentItem(moved_item)
+                self.parent().save_folder_order_for_item(source_parent)
+                self.item_moved.emit(source_path, folder_path)
+                event.accept()
+                return
+
+        if not self._is_folder_item(target):
+            event.ignore()
+            return
+
         source_path = self._get_item_path(dragged)
         target_path = self._get_item_path(target)
-        is_target_root = target.text(0) == "全部"
+        from app.constants import Messages
+        is_target_root = target.text(0) == Messages.ALL_PROMPTS
 
         if not source_path:
             event.ignore()
@@ -112,6 +170,8 @@ class DraggableTreeWidget(QTreeWidget):
             data = dragged.data(0, Qt.UserRole)
             if isinstance(data, PromptFile):
                 source_parent = str(data.path.parent.relative_to(config.data_dir)).replace("\\", "/")
+                if source_parent == ".":
+                    source_parent = ""
                 if source_parent == target_path:
                     event.ignore()
                     return
@@ -151,6 +211,8 @@ class DraggableTreeWidget(QTreeWidget):
                 dragged.setData(0, Qt.UserRole, data)
 
         self.item_moved.emit(source_path, target_path)
+        self.parent().save_folder_order(source_parent if "source_parent" in locals() else "")
+        self.parent().save_folder_order(target_path)
         event.accept()
 
     def _update_folder_paths(self, item, new_path):
@@ -169,6 +231,7 @@ class DraggableTreeWidget(QTreeWidget):
 
 class TreePanel(QWidget):
     prompt_selected = Signal(object)
+    folder_selected = Signal(str)
     new_folder_requested = Signal(str)
     new_prompt_requested = Signal(str)
     rename_folder_requested = Signal(str)
@@ -181,71 +244,156 @@ class TreePanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
+        from app.constants import Messages
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         header = QHBoxLayout()
+        header.setContentsMargins(12, 10, 8, 10)
         header.setSpacing(4)
-        header_label = QLabel("目录")
-        header_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        header.addWidget(header_label)
+        self.header_label = QLabel(Messages.SIDEBAR_TITLE)
+        palette = current_palette()
+        self.header_label.setStyleSheet(f"color: {palette['ink']}; font-weight: 600; font-size: 13px;")
+        header.addWidget(self.header_label)
         header.addStretch()
 
-        self.new_folder_btn = QPushButton("+📁")
-        self.new_folder_btn.setToolTip("新建文件夹")
-        self.new_folder_btn.clicked.connect(self._on_new_folder)
-        header.addWidget(self.new_folder_btn)
-
-        self.new_prompt_btn = QPushButton("+📄")
-        self.new_prompt_btn.setToolTip("新建提示词文件")
-        self.new_prompt_btn.clicked.connect(self._on_new_prompt)
-        header.addWidget(self.new_prompt_btn)
-
-        self.select_all_btn = QPushButton("全选")
-        self.select_all_btn.clicked.connect(lambda: self.tree.selectAll())
-        header.addWidget(self.select_all_btn)
+        self.collapse_btn = QPushButton("《")
+        self.collapse_btn.setFixedSize(24, 24)
+        self.collapse_btn.setStyleSheet(
+            f"QPushButton {{ border: none; background: transparent; color: {palette['muted']}; font-size: 12px; }}"
+            f"QPushButton:hover {{ background: {palette['surface_hover']}; color: {palette['ink']}; }}"
+        )
+        self.collapse_btn.setToolTip("收起侧边栏")
+        self.collapse_btn.clicked.connect(self._toggle_collapse)
+        header.addWidget(self.collapse_btn)
 
         layout.addLayout(header)
 
-        batch = QHBoxLayout()
-        batch.setSpacing(4)
-        self.batch_move_btn = QPushButton("移动")
-        self.batch_move_btn.setToolTip("批量移动到分类")
-        self.batch_move_btn.clicked.connect(self._on_batch_move)
-        batch.addWidget(self.batch_move_btn)
-
-        self.batch_delete_btn = QPushButton("删除")
-        self.batch_delete_btn.setToolTip("批量删除")
-        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
-        batch.addWidget(self.batch_delete_btn)
-
-        self.batch_export_btn = QPushButton("导出")
-        self.batch_export_btn.setToolTip("批量导出")
-        self.batch_export_btn.clicked.connect(self._on_batch_export)
-        batch.addWidget(self.batch_export_btn)
-
-        self.open_folder_btn = QPushButton("📂")
-        self.open_folder_btn.setToolTip("打开所在文件夹")
-        self.open_folder_btn.clicked.connect(self._on_open_containing_folder)
-        batch.addWidget(self.open_folder_btn)
-
-        batch.addStretch()
-        layout.addLayout(batch)
-
         self.tree = DraggableTreeWidget(self)
         self.tree.setHeaderHidden(True)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setItemsExpandable(True)
+        self.tree.setIndentation(16)
         self.tree.setFrameShape(QTreeWidget.NoFrame)
         self.tree.itemClicked.connect(self._on_item_clicked)
+        self.tree.itemExpanded.connect(self._on_item_expanded)
+        self.tree.itemCollapsed.connect(self._on_item_collapsed)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_context_menu)
+        self.tree.setStyleSheet(tree_stylesheet())
         layout.addWidget(self.tree)
+
+        self._collapsed = False
+        self._original_width = config.ui_sidebar_width
+
+    def apply_theme(self):
+        palette = current_palette()
+        self.header_label.setStyleSheet(f"color: {palette['ink']}; font-weight: 600; font-size: 13px;")
+        self.collapse_btn.setStyleSheet(
+            f"QPushButton {{ border: none; background: transparent; color: {palette['muted']}; font-size: 12px; }}"
+            f"QPushButton:hover {{ background: {palette['surface_hover']}; color: {palette['ink']}; }}"
+        )
+        self.tree.setStyleSheet(tree_stylesheet())
+        self.tree.viewport().update()
+
+    def _toggle_collapse(self):
+        parent = self.parentWidget()
+        if not parent:
+            return
+        splitter = None
+        for child in parent.children():
+            if isinstance(child, QSplitter):
+                splitter = child
+                break
+        if not splitter:
+            return
+        if self._collapsed:
+            self.setMaximumWidth(400)
+            self.setMinimumWidth(180)
+            self.collapse_btn.setText("《")
+            self.collapse_btn.setToolTip("收起侧边栏")
+            if splitter.count() >= 2:
+                splitter.setSizes([self._original_width, splitter.width() - self._original_width])
+            self.tree.setVisible(True)
+            self._collapsed = False
+        else:
+            self._original_width = self.width()
+            self.setMaximumWidth(40)
+            self.setMinimumWidth(40)
+            self.collapse_btn.setText("》")
+            self.collapse_btn.setToolTip("展开侧边栏")
+            self.tree.setVisible(False)
+            self._collapsed = True
 
     def _folder_icon(self, folder_path):
         icon_key = config.folder_icon(folder_path)
         if icon_key and hasattr(self.style().StandardPixmap, icon_key):
             return self.style().standardIcon(getattr(self.style().StandardPixmap, icon_key))
         return self.style().standardIcon(self.style().StandardPixmap.SP_DirIcon)
+
+    def _set_item_name(self, item, name: str):
+        item.setData(0, Qt.UserRole + 3, name)
+        self._refresh_item_arrow(item)
+
+    def _item_name(self, item) -> str:
+        stored = item.data(0, Qt.UserRole + 3)
+        return stored if stored else item.text(0).lstrip("▾▸ ").strip()
+
+    def _refresh_item_arrow(self, item):
+        name = self._item_name(item)
+        if self._is_folder_item(item) and item.childCount() > 0:
+            prefix = "▾" if item.isExpanded() else "▸"
+            item.setText(0, f"{prefix} {name}")
+        else:
+            item.setText(0, name)
+
+    def _on_item_expanded(self, item):
+        self._refresh_item_arrow(item)
+
+    def _on_item_collapsed(self, item):
+        self._refresh_item_arrow(item)
+
+    def _ordered_files(self, folder_path: str, files: list[Path]) -> list[Path]:
+        ordered_names = state_service.get_folder_order(folder_path)
+        if not ordered_names:
+            return sorted(files)
+        by_name = {file.name: file for file in files}
+        ordered = [by_name[name] for name in ordered_names if name in by_name]
+        remaining = sorted([file for file in files if file.name not in ordered_names])
+        return ordered + remaining
+
+    def save_folder_order_for_item(self, parent_item):
+        folder_path = self._get_item_path(parent_item) if parent_item else ""
+        self.save_folder_order(folder_path, parent_item)
+
+    def save_folder_order(self, folder_path: str, parent_item=None):
+        if parent_item is None:
+            parent_item = self._find_item_by_path(folder_path) if folder_path else None
+        if parent_item is None:
+            count = self.tree.topLevelItemCount()
+            items = [self.tree.topLevelItem(i) for i in range(count)]
+        else:
+            items = [parent_item.child(i) for i in range(parent_item.childCount())]
+        file_names = []
+        for item in items:
+            data = item.data(0, Qt.UserRole)
+            if isinstance(data, PromptFile):
+                file_names.append(data.path.name)
+        state_service.set_folder_order(folder_path, file_names)
+
+    def get_prompts_for_folder(self, folder_path: str) -> list[PromptFile]:
+        if not folder_path:
+            return list(file_service.iter_all_prompts())
+        target_dir = config.data_dir / folder_path if folder_path else config.data_dir
+        if not target_dir.exists():
+            return []
+        files = [
+            file for file in target_dir.iterdir()
+            if file.is_file() and file.suffix.lower() in config.supported_prompt_extensions
+        ]
+        return [PromptFile(file) for file in self._ordered_files(folder_path, files)]
 
     def _on_new_folder(self):
         current = self.tree.currentItem()
@@ -269,8 +417,11 @@ class TreePanel(QWidget):
         data = item.data(0, Qt.UserRole)
         if isinstance(data, PromptFile):
             self.prompt_selected.emit(data)
+        elif self._is_folder_item(item):
+            self.folder_selected.emit(self._get_item_path(item))
 
     def _show_context_menu(self, position):
+        from app.constants import Messages
         item = self.tree.itemAt(position)
         if not item:
             return
@@ -278,7 +429,7 @@ class TreePanel(QWidget):
         menu = QMenu(self)
         data = item.data(0, Qt.UserRole)
         is_folder = self._is_folder_item(item)
-        is_all = item.text(0) == "全部"
+        is_all = item.text(0) == Messages.ALL_PROMPTS
 
         if is_all:
             menu.addAction("新建文件夹", lambda: self.new_folder_requested.emit(""))
@@ -363,17 +514,19 @@ class TreePanel(QWidget):
         return item.data(0, Qt.UserRole + 1) == "folder"
 
     def _get_item_path(self, item):
+        from app.constants import Messages
         if not item:
             return ""
         parts = []
         while item:
-            text = item.text(0)
-            if text != "全部":
+            text = self._item_name(item)
+            if text not in (Messages.ALL_PROMPTS, Messages.FAVORITES, Messages.RECENTLY_USED):
                 parts.insert(0, text)
             item = item.parent()
         return "/".join(parts)
 
     def load_tree(self):
+        from app.constants import Messages
         expanded_paths = self._get_expanded_paths()
         self.tree.clear()
 
@@ -381,20 +534,19 @@ class TreePanel(QWidget):
             return
 
         all_item = QTreeWidgetItem(self.tree)
-        all_item.setText(0, "全部")
         all_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_DirHomeIcon))
         all_item.setData(0, Qt.UserRole + 1, "folder")
         all_item.setExpanded(True)
-        all_item.setFlags(all_item.flags() & ~Qt.ItemIsSelectable)
+        self._set_item_name(all_item, Messages.ALL_PROMPTS)
 
         favs = state_service.get_favorites()
         if favs:
             fav_item = QTreeWidgetItem(self.tree)
-            fav_item.setText(0, "⭐ 收藏")
             fav_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_DialogApplyButton))
             fav_item.setData(0, Qt.UserRole + 1, "special")
             fav_item.setData(0, Qt.UserRole + 2, "favorites")
             fav_item.setExpanded(True)
+            self._set_item_name(fav_item, Messages.FAVORITES)
             for fav_path in favs:
                 full = config.data_dir / fav_path
                 if full.exists():
@@ -407,11 +559,11 @@ class TreePanel(QWidget):
         recent = state_service.get_recent_files()
         if recent:
             recent_item = QTreeWidgetItem(self.tree)
-            recent_item.setText(0, "🕐 最近使用")
             recent_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
             recent_item.setData(0, Qt.UserRole + 1, "special")
             recent_item.setData(0, Qt.UserRole + 2, "recent")
             recent_item.setExpanded(False)
+            self._set_item_name(recent_item, Messages.RECENTLY_USED)
             for r in recent[:20]:
                 full = config.data_dir / r.get("path", "")
                 if full.exists():
@@ -422,17 +574,18 @@ class TreePanel(QWidget):
                     child.setData(0, Qt.UserRole + 1, "file")
 
         dirs = sorted([d for d in config.data_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
-        files = sorted([f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
+        files = self._ordered_files("", [f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
 
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 
         for d in dirs:
             rel_path = str(d.relative_to(config.data_dir)).replace("\\", "/")
             folder_item = QTreeWidgetItem(self.tree)
-            folder_item.setText(0, d.name)
             folder_item.setIcon(0, self._folder_icon(rel_path))
             folder_item.setData(0, Qt.UserRole + 1, "folder")
+            self._set_item_name(folder_item, d.name)
             self._load_directory(d, folder_item)
+            self._refresh_item_arrow(folder_item)
 
         for f in files:
             file_item = QTreeWidgetItem(self.tree)
@@ -470,17 +623,19 @@ class TreePanel(QWidget):
 
     def _load_directory(self, dir_path, parent_item):
         dirs = sorted([d for d in dir_path.iterdir() if d.is_dir() and not d.name.startswith(".")])
-        files = sorted([f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
+        folder_path = dir_path.relative_to(config.data_dir).as_posix()
+        files = self._ordered_files(folder_path, [f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
 
         file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
 
         for d in dirs:
             rel_path = str(d.relative_to(config.data_dir)).replace("\\", "/")
             folder_item = QTreeWidgetItem(parent_item)
-            folder_item.setText(0, d.name)
             folder_item.setIcon(0, self._folder_icon(rel_path))
             folder_item.setData(0, Qt.UserRole + 1, "folder")
+            self._set_item_name(folder_item, d.name)
             self._load_directory(d, folder_item)
+            self._refresh_item_arrow(folder_item)
 
         for f in files:
             file_item = QTreeWidgetItem(parent_item)
@@ -517,9 +672,9 @@ class TreePanel(QWidget):
         if parent_item is None:
             parent_item = self.tree
         folder_item = QTreeWidgetItem(parent_item)
-        folder_item.setText(0, folder_name)
         folder_item.setIcon(0, self._folder_icon(folder_path))
         folder_item.setData(0, Qt.UserRole + 1, "folder")
+        self._set_item_name(folder_item, folder_name)
         self.tree.setCurrentItem(folder_item)
         parent_item.setExpanded(True) if isinstance(parent_item, QTreeWidgetItem) else None
 
@@ -559,7 +714,7 @@ class TreePanel(QWidget):
     def rename_folder_item(self, folder_path, new_name):
         item = self._find_item_by_path(folder_path)
         if item:
-            item.setText(0, new_name)
+            self._set_item_name(item, new_name)
             new_path = str(Path(folder_path).parent / new_name).replace("\\", "/")
             if new_path.startswith("./"):
                 new_path = new_path[2:]
@@ -706,7 +861,7 @@ class TreePanel(QWidget):
             QMessageBox.information(self, "历史版本", "暂无历史版本")
             return
         dialog = QDialog(self)
-        dialog.setWindowTitle(f"历史版本 - {prompt_file.filename}")
+        dialog.setWindowTitle(f"历史版本 - {prompt_file.path.name}")
         dialog.setMinimumSize(600, 400)
         layout = QVBoxLayout(dialog)
         version_list = QListWidget()
@@ -745,5 +900,3 @@ class TreePanel(QWidget):
             os.startfile(str(folder))
         except Exception:
             pass
-
-

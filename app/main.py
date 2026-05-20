@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 from app.config import config
 from app.ui.main_window import MainWindow
 from app.ui.quick_window import QuickWindow
+from app.ui.theme import app_stylesheet
 from app.ui.tray import TrayManager
 
 
@@ -74,6 +75,7 @@ def main():
     app.setApplicationName(config.app_name)
     app.setApplicationVersion(config.app_version)
     app.setQuitOnLastWindowClosed(False)
+    app.setStyleSheet(app_stylesheet())
     from app.utils.icon_utils import create_app_icon
     app.setWindowIcon(create_app_icon())
 

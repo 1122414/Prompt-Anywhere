@@ -1,6 +1,8 @@
 from PySide6.QtCore import QRegularExpression
 from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
 
+from app.ui.theme import current_palette
+
 
 class MarkdownHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
@@ -9,9 +11,10 @@ class MarkdownHighlighter(QSyntaxHighlighter):
         self._setup_rules()
 
     def _setup_formats(self):
+        palette = current_palette()
         self.header_format = QTextCharFormat()
         self.header_format.setFontWeight(QFont.Bold)
-        self.header_format.setForeground(QColor("#005cc5"))
+        self.header_format.setForeground(QColor(palette["accent_hover"]))
 
         self.bold_format = QTextCharFormat()
         self.bold_format.setFontWeight(QFont.Bold)
@@ -21,22 +24,22 @@ class MarkdownHighlighter(QSyntaxHighlighter):
 
         self.code_format = QTextCharFormat()
         self.code_format.setFontFamily("Consolas, monospace")
-        self.code_format.setForeground(QColor("#e36209"))
-        self.code_format.setBackground(QColor("#f6f8fa"))
+        self.code_format.setForeground(QColor(palette["warning"]))
+        self.code_format.setBackground(QColor(palette["surface_active"]))
 
         self.link_format = QTextCharFormat()
-        self.link_format.setForeground(QColor("#0366d6"))
+        self.link_format.setForeground(QColor(palette["accent_hover"]))
         self.link_format.setUnderlineStyle(QTextCharFormat.SingleUnderline)
 
         self.list_format = QTextCharFormat()
-        self.list_format.setForeground(QColor("#22863a"))
+        self.list_format.setForeground(QColor(palette["success"]))
 
         self.quote_format = QTextCharFormat()
-        self.quote_format.setForeground(QColor("#6a737d"))
+        self.quote_format.setForeground(QColor(palette["muted"]))
         self.quote_format.setFontItalic(True)
 
         self.strikethrough_format = QTextCharFormat()
-        self.strikethrough_format.setForeground(QColor("#6a737d"))
+        self.strikethrough_format.setForeground(QColor(palette["subtle"]))
 
     def _setup_rules(self):
         self.rules = [

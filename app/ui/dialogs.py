@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import config
+from app.ui.theme import current_palette, muted_label_stylesheet
 
 
 class FolderDialog(QDialog):
@@ -39,7 +40,7 @@ class FolderDialog(QDialog):
 
         if self._folder_path:
             path_label = QLabel(f"父目录: {self._folder_path or '根目录'}")
-            path_label.setStyleSheet("color: #888;")
+            path_label.setStyleSheet(muted_label_stylesheet())
             layout.addWidget(path_label)
 
         form = QFormLayout()
@@ -82,7 +83,7 @@ class PromptDialog(QDialog):
         layout = QVBoxLayout(self)
 
         path_label = QLabel(f"保存位置: {self._parent_path or '根目录'}")
-        path_label.setStyleSheet("color: #888;")
+        path_label.setStyleSheet(muted_label_stylesheet())
         layout.addWidget(path_label)
 
         form = QFormLayout()
@@ -245,7 +246,7 @@ class VariableNameDialog(QDialog):
 
         if self._selected_text:
             text_label = QLabel(f"选中的文本：{self._selected_text}")
-            text_label.setStyleSheet("color: #666; padding: 4px;")
+            text_label.setStyleSheet(muted_label_stylesheet())
             layout.addWidget(text_label)
 
         form = QFormLayout()
@@ -292,7 +293,7 @@ class VariableNameDialog(QDialog):
         layout.addLayout(quick_layout2)
 
         self.validation_label = QLabel("")
-        self.validation_label.setStyleSheet("color: red;")
+        self.validation_label.setStyleSheet(f"color: {current_palette()['error']};")
         layout.addWidget(self.validation_label)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -344,7 +345,7 @@ class TemplateDialog(QDialog):
 
         if self._filename:
             name_label = QLabel(f"文件：{self._filename}")
-            name_label.setStyleSheet("color: #666; padding: 4px;")
+            name_label.setStyleSheet(muted_label_stylesheet())
             layout.addWidget(name_label)
 
         scroll = QScrollArea()

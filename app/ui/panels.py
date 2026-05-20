@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from app.config import config
 from app.constants import AppConstants, Messages
 from app.services.file_service import PromptFile
+from app.ui.theme import current_palette, empty_label_stylesheet, preview_stylesheet
 from app.utils.image_utils import save_pasted_image
 from app.utils.markdown_utils import renderer
 from app.utils.syntax_highlighter import MarkdownHighlighter
@@ -30,6 +31,10 @@ class EditorPanel(QWidget):
         super().__init__(parent)
         self._current_prompt = None
         self._is_modified = False
+        self._is_folder_preview = False
+        self._folder_preview_path = ""
+        self._folder_preview_prompts = []
+        self._zoom_font_size = 13
         self._current_mode = config.default_view_mode
         self._setup_ui()
 
@@ -79,19 +84,62 @@ class EditorPanel(QWidget):
         self.editor.installEventFilter(self)
         self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
         self.editor.customContextMenuRequested.connect(self._show_editor_context_menu)
+        self.editor.setStyleSheet(preview_stylesheet())
         self.highlighter = MarkdownHighlighter(self.editor.document())
         layout.addWidget(self.editor)
 
         self.preview = QTextBrowser()
         self.preview.setOpenExternalLinks(True)
+        self.preview.installEventFilter(self)
+        self.preview.setStyleSheet(preview_stylesheet())
         layout.addWidget(self.preview)
 
         self.empty_label = QLabel("选择一个提示词以查看内容")
         self.empty_label.setAlignment(Qt.AlignCenter)
-        self.empty_label.setStyleSheet("color: #888; padding: 40px;")
+        self.empty_label.setStyleSheet(empty_label_stylesheet())
         layout.addWidget(self.empty_label)
 
         self._update_visibility()
+        self._apply_zoom()
+
+    def apply_theme(self):
+        self._apply_zoom()
+        self.empty_label.setStyleSheet(empty_label_stylesheet())
+        self.highlighter._setup_formats()
+        self.highlighter.rehighlight()
+
+    def zoom_in(self):
+        self._set_zoom_font_size(self._zoom_font_size + 1)
+
+    def zoom_out(self):
+        self._set_zoom_font_size(self._zoom_font_size - 1)
+
+    def reset_zoom(self):
+        self._set_zoom_font_size(13)
+
+    def _set_zoom_font_size(self, font_size: int):
+        self._zoom_font_size = max(10, min(24, font_size))
+        self._apply_zoom()
+        if self._is_folder_preview:
+            self.preview.setHtml(self._build_folder_preview_html(
+                self._folder_preview_path,
+                self._folder_preview_prompts
+            ))
+            self._apply_preview_document_zoom()
+        elif self._current_prompt and self._current_mode == AppConstants.MODE_PREVIEW:
+            self.set_mode(AppConstants.MODE_PREVIEW)
+
+    def _apply_zoom(self):
+        zoom_style = f"""
+            QPlainTextEdit {{
+                font-size: {self._zoom_font_size}px;
+            }}
+            QTextBrowser {{
+                font-size: {self._zoom_font_size}px;
+            }}
+        """
+        self.editor.setStyleSheet(preview_stylesheet() + zoom_style)
+        self.preview.setStyleSheet(preview_stylesheet() + zoom_style)
 
     def _on_text_changed(self):
         if self._current_prompt:
@@ -111,18 +159,22 @@ class EditorPanel(QWidget):
         has_prompt = self._current_prompt is not None
         is_txt = self._is_txt_file()
 
-        self.editor.setVisible(has_prompt and (self._current_mode == AppConstants.MODE_EDIT or is_txt))
-        self.preview.setVisible(has_prompt and self._current_mode == AppConstants.MODE_PREVIEW and not is_txt)
-        self.empty_label.setVisible(not has_prompt)
+        self.editor.setVisible(not self._is_folder_preview and has_prompt and (self._current_mode == AppConstants.MODE_EDIT or is_txt))
+        self.preview.setVisible(
+            self._is_folder_preview
+            or (has_prompt and self._current_mode == AppConstants.MODE_PREVIEW and not is_txt)
+        )
+        self.empty_label.setVisible(not has_prompt and not self._is_folder_preview)
 
         self.mode_edit_btn.setChecked(self._current_mode == AppConstants.MODE_EDIT)
         self.mode_preview_btn.setChecked(self._current_mode == AppConstants.MODE_PREVIEW)
-        self.mode_preview_btn.setVisible(has_prompt and not is_txt)
+        self.mode_edit_btn.setVisible(not self._is_folder_preview)
+        self.mode_preview_btn.setVisible(not self._is_folder_preview and has_prompt and not is_txt)
 
-        self.copy_btn.setEnabled(has_prompt)
-        self.save_btn.setEnabled(has_prompt and self._is_modified)
-        self.export_btn.setEnabled(has_prompt)
-        self.delete_btn.setEnabled(has_prompt)
+        self.copy_btn.setEnabled(not self._is_folder_preview and has_prompt)
+        self.save_btn.setEnabled(not self._is_folder_preview and has_prompt and self._is_modified)
+        self.export_btn.setEnabled(not self._is_folder_preview and has_prompt)
+        self.delete_btn.setEnabled(not self._is_folder_preview and has_prompt)
 
     def set_mode(self, mode: str):
         if mode not in (AppConstants.MODE_EDIT, AppConstants.MODE_PREVIEW):
@@ -133,6 +185,7 @@ class EditorPanel(QWidget):
             html = renderer.render(text)
             self.preview.setSearchPaths([str(self._current_prompt.path.parent)])
             self.preview.setHtml(html)
+            self._apply_preview_document_zoom()
         self._update_visibility()
         self.mode_changed.emit(mode)
 
@@ -142,6 +195,9 @@ class EditorPanel(QWidget):
 
         self._current_prompt = prompt
         self._is_modified = False
+        self._is_folder_preview = False
+        self._folder_preview_path = ""
+        self._folder_preview_prompts = []
 
         if prompt:
             content = prompt.read_content()
@@ -162,6 +218,95 @@ class EditorPanel(QWidget):
         self._update_title()
         return True
 
+    def show_folder_preview(self, folder_path: str, prompts: list[PromptFile]):
+        self._current_prompt = None
+        self._is_modified = False
+        self._is_folder_preview = True
+        self._folder_preview_path = folder_path
+        self._folder_preview_prompts = prompts
+        self.editor.blockSignals(True)
+        self.editor.clear()
+        self.editor.blockSignals(False)
+        self.preview.setHtml(self._build_folder_preview_html(folder_path, prompts))
+        self._apply_preview_document_zoom()
+        self._update_visibility()
+        self.window().setWindowTitle(f"{folder_path or '全部 Prompt'} - {config.app_name}")
+
+    def _apply_preview_document_zoom(self):
+        steps = self._zoom_font_size - 13
+        if steps > 0:
+            self.preview.zoomIn(steps)
+        elif steps < 0:
+            self.preview.zoomOut(abs(steps))
+
+    def _build_folder_preview_html(self, folder_path: str, prompts: list[PromptFile]) -> str:
+        import html
+        import re
+        palette = current_palette()
+        base_size = self._zoom_font_size
+        title = html.escape(folder_path or "全部 Prompt")
+        if not prompts:
+            body = "<div class='empty'>此目录暂无 Prompt</div>"
+        else:
+            cards = []
+            for prompt in prompts:
+                try:
+                    content = prompt.read_content()
+                except Exception:
+                    content = ""
+                excerpt = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", content)
+                excerpt = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", excerpt)
+                excerpt = re.sub(r"[#>*_`~\-]+", " ", excerpt)
+                excerpt = re.sub(r"\s+", " ", excerpt).strip()
+                if len(excerpt) > 100:
+                    excerpt = f"{excerpt[:100]}..."
+                cards.append(
+                    "<div class='prompt-card'>"
+                    f"<div class='prompt-title'>{html.escape(prompt.name)}</div>"
+                    f"<div class='prompt-excerpt'>{html.escape(excerpt or '无内容')}</div>"
+                    "</div>"
+                )
+            body = "".join(cards)
+        return f"""
+        <style>
+            body {{
+                font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+                margin: 0;
+                padding: 8px;
+            }}
+            .folder-title {{
+                font-size: {base_size + 9}px;
+                font-weight: 650;
+                margin: 4px 0 18px 0;
+                color: {palette["ink"]};
+            }}
+            .prompt-card {{
+                padding: 14px 16px;
+                border-bottom: 1px solid {palette["hairline"]};
+            }}
+            .prompt-title {{
+                font-size: {base_size + 2}px;
+                font-weight: 600;
+                color: {palette["ink"]};
+                margin-bottom: 8px;
+            }}
+            .prompt-excerpt {{
+                font-size: {base_size}px;
+                line-height: 1.7;
+                color: {palette["body"]};
+            }}
+            .empty {{
+                padding: 40px 0;
+                color: {palette["muted"]};
+                text-align: center;
+            }}
+        </style>
+        <body>
+            <div class='folder-title'>{title}</div>
+            {body}
+        </body>
+        """
+
     def get_content(self) -> str:
         return self.editor.toPlainText()
 
@@ -181,6 +326,13 @@ class EditorPanel(QWidget):
         self._update_title()
 
     def eventFilter(self, obj, event):
+        if obj in (self.editor, self.preview) and event.type() == event.Type.Wheel:
+            if event.modifiers() & Qt.ControlModifier:
+                if event.angleDelta().y() > 0:
+                    self.zoom_in()
+                else:
+                    self.zoom_out()
+                return True
         if obj == self.editor and event.type() == event.Type.KeyPress:
             if event.key() == Qt.Key_V and event.modifiers() == Qt.ControlModifier:
                 if self._handle_paste():

@@ -108,6 +108,15 @@ class StateService(Singleton):
         recent = recent[:config.max_recent_files]
         self.set_recent_files(recent)
 
+    def get_folder_order(self, folder_path: str) -> list:
+        return self._state.get("folder_orders", {}).get(folder_path, [])
+
+    def set_folder_order(self, folder_path: str, file_names: list):
+        if "folder_orders" not in self._state:
+            self._state["folder_orders"] = {}
+        self._state["folder_orders"][folder_path] = file_names
+        self._save_state()
+
     def get_preference(self, key: str, default=None):
         return self._state.get("preferences", {}).get(key, default)
 

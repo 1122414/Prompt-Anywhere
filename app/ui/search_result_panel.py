@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from app.config import config
 from app.services.search_service import SearchResult
+from app.ui.theme import current_palette, highlight_html, preview_stylesheet, result_list_stylesheet
 from app.utils.highlight_utils import highlight_text
 
 
@@ -38,24 +39,7 @@ class SearchResultPanel(QWidget):
 
         self.result_list = QListWidget()
         self.result_list.setSpacing(1)
-        self.result_list.setStyleSheet(f"""
-            QListWidget {{
-                border: none;
-                background: #fafafa;
-            }}
-            QListWidget::item {{
-                border-bottom: 1px solid #eee;
-                padding: 6px 8px;
-                color: #333;
-            }}
-            QListWidget::item:selected {{
-                background-color: {config.search_selected_bg_color};
-                color: #000;
-            }}
-            QListWidget::item:hover {{
-                background-color: #f0f0f0;
-            }}
-        """)
+        self.result_list.setStyleSheet(result_list_stylesheet())
         self.result_list.currentItemChanged.connect(self._on_selection_changed)
         self.result_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.result_list.customContextMenuRequested.connect(self._show_context_menu)
@@ -64,11 +48,15 @@ class SearchResultPanel(QWidget):
 
         self.preview = QTextBrowser()
         self.preview.setOpenExternalLinks(False)
-        self.preview.setStyleSheet("border: none; padding: 12px; font-size: 13px;")
+        self.preview.setStyleSheet(preview_stylesheet())
         self.splitter.addWidget(self.preview)
 
         self.splitter.setSizes([300, 500])
         layout.addWidget(self.splitter)
+
+    def apply_theme(self):
+        self.result_list.setStyleSheet(result_list_stylesheet())
+        self.preview.setStyleSheet(preview_stylesheet())
 
     def set_results(self, results: list[SearchResult], keyword: str):
         self._results = results
@@ -98,11 +86,12 @@ class SearchResultPanel(QWidget):
         self.result_list.addItem(hint_item)
 
     def _add_result_item(self, result: SearchResult):
+        palette = current_palette()
         item = QListWidgetItem()
         name_html = self._build_highlighted_text(result.filename, self._keyword)
         if result.snippets:
             snippet_text = result.snippets[0][:100]
-            display = f"{name_html}<br><span style='color:#888;font-size:11px;'>{self._escape_html(snippet_text)}</span>"
+            display = f"{name_html}<br><span style='color:{palette['muted']};font-size:11px;'>{self._escape_html(snippet_text)}</span>"
         else:
             display = name_html
 
@@ -110,6 +99,7 @@ class SearchResultPanel(QWidget):
         label.setTextFormat(Qt.RichText)
         label.setWordWrap(True)
         label.setContentsMargins(4, 2, 4, 2)
+        label.setStyleSheet("background: transparent;")
 
         item.setSizeHint(label.sizeHint())
         item.setData(Qt.UserRole, result)
@@ -127,7 +117,7 @@ class SearchResultPanel(QWidget):
         for part in parts:
             escaped = self._escape_html(part["text"])
             if part["highlight"]:
-                html_parts.append(f"<span style='background:#FFEB3B;color:#000;font-weight:bold'>{escaped}</span>")
+                html_parts.append(highlight_html(escaped))
             else:
                 html_parts.append(escaped)
         return "".join(html_parts)
@@ -180,6 +170,7 @@ class SearchResultPanel(QWidget):
             self._show_preview(result)
 
     def _show_preview(self, result: SearchResult):
+        palette = current_palette()
         full_path = config.data_dir / result.path
         if not full_path.exists():
             self.preview.setPlainText("(文件不存在)")
@@ -193,7 +184,11 @@ class SearchResultPanel(QWidget):
         if self._keyword:
             escaped_content = self._escape_html(content)
             highlighted = self._build_highlighted_text(content, self._keyword)
-            self.preview.setHtml(f"<pre style='white-space:pre-wrap;font-family:inherit;'>{highlighted}</pre>")
+            self.preview.setHtml(
+                f"<body style='background:{palette['surface_elevated']};color:{palette['body']};'>"
+                f"<pre style='white-space:pre-wrap;font-family:inherit;background:{palette['surface_elevated']};"
+                f"color:{palette['body']};border:0;margin:0;'>{highlighted}</pre></body>"
+            )
         else:
             self.preview.setPlainText(content)
 

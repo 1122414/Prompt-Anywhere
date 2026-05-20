@@ -17,6 +17,7 @@ from app.services.usage_service import usage_service
 from app.services.notification_service import notification_service
 from app.ui.search_mixin import SearchMixin
 from app.ui.search_result_panel import SearchResultPanel
+from app.ui.theme import muted_label_stylesheet
 
 
 class QuickWindow(QMainWindow, SearchMixin):
@@ -52,9 +53,13 @@ class QuickWindow(QMainWindow, SearchMixin):
         self.search_result_panel.escape_pressed.connect(self._on_escape)
         layout.addWidget(self.search_result_panel)
 
-        hint = QLabel("↑↓ 选择  |  Enter 复制并关闭  |  Shift+Enter 复制  |  Esc 关闭")
-        hint.setStyleSheet("color: #888; font-size: 11px; padding: 4px;")
-        layout.addWidget(hint)
+        self.hint_label = QLabel("↑↓ 选择  |  Enter 复制并关闭  |  Shift+Enter 复制  |  Esc 关闭")
+        self.hint_label.setStyleSheet(muted_label_stylesheet())
+        layout.addWidget(self.hint_label)
+
+    def apply_theme(self):
+        self.hint_label.setStyleSheet(muted_label_stylesheet())
+        self.search_result_panel.apply_theme()
 
     def showEvent(self, event):
         super().showEvent(event)

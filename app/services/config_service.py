@@ -33,6 +33,9 @@ _DEFAULTS: Dict[str, Any] = {
         "remember_position": True,
         "remember_size": True,
     },
+    "ui": {
+        "custom_themes": {},
+    },
     "backup": {
         "auto_backup_enabled": True,
         "auto_backup_interval_hours": 24,
@@ -157,6 +160,10 @@ class ConfigService(Singleton):
         if value is not None:
             return value
         return default
+
+    def get_user(self, key: str, default=None):
+        value = _get_nested(self._user_config, key)
+        return default if value is None else value
 
     def set(self, key: str, value):
         _set_nested(self._user_config, key, value)

@@ -1,28 +1,28 @@
-# Prompt Anywhere 依赖
-# 安装命令：pip install -r requirements.txt
+# Prompt Anywhere dependencies
+# Install: pip install -r requirements.txt
 
-# 核心框架
+# Desktop framework
 PySide6>=6.7
 
-# Markdown 渲染
+# Markdown rendering
 markdown>=3.5
 Pygments>=2.16
 
-# 配置读取
+# Configuration
 PyYAML>=6.0.1
 
-# 环境变量
+# Environment variables
 python-dotenv>=1.0.0
 
-# 回收站删除
+# Safe deletion through the recycle bin
 send2trash>=1.8.0
 
-# v0.2.0 Prompt Spotlight - 拼音/模糊搜索
+# Prompt Spotlight - pinyin and fuzzy search
 pypinyin>=0.50.0
 rapidfuzz>=3.9.0
 
-# v0.3.0 语义搜索 - 向量索引
+# Semantic search vector operations
 numpy>=1.24.0
 
-# v0.3.0 / v0.4.0 HTTP客户端
+# HTTP client
 httpx>=0.27.0

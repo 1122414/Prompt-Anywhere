@@ -22,6 +22,11 @@ class UsageService(Singleton):
         data = JsonFileStore.load(self._usage_file, {})
         self._data = data if isinstance(data, dict) else {}
 
+    def reload_storage(self):
+        self._usage_file = config.knowledge_base_dir / "usage.json"
+        self._data = {}
+        self._ensure_loaded()
+
     def _save(self):
         JsonFileStore.save(self._usage_file, self._data)
 

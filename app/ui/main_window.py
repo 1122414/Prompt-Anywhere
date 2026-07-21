@@ -41,6 +41,7 @@ from app.ui.panels import EditorPanel
 from app.ui.search_mixin import SearchMixin
 from app.ui.search_popup import SearchPopupWindow
 from app.ui.theme import app_stylesheet
+from app.ui.theme_widgets import ThemeHeader
 from app.ui.tray import TrayManager
 from app.ui.tree_panel import TreePanel
 
@@ -131,10 +132,20 @@ class MainWindow(QMainWindow, SearchMixin):
         self.setMinimumSize(600, 400)
 
         window_state = state_service.get_window_state()
-        width = window_state.get("width", config.default_window_width)
-        height = window_state.get("height", config.default_window_height)
-        x = window_state.get("x", 100)
-        y = window_state.get("y", 100)
+        remember_size = config_service.get("window.remember_size", True)
+        remember_position = config_service.get("window.remember_position", True)
+        width = (
+            window_state.get("width", config.default_window_width)
+            if remember_size
+            else config.default_window_width
+        )
+        height = (
+            window_state.get("height", config.default_window_height)
+            if remember_size
+            else config.default_window_height
+        )
+        x = window_state.get("x", 100) if remember_position else 100
+        y = window_state.get("y", 100) if remember_position else 100
         self.resize(width, height)
         self.move(x, y)
 
@@ -174,23 +185,36 @@ class MainWindow(QMainWindow, SearchMixin):
 
     def _setup_ui(self):
         central = QWidget()
+        central.setObjectName("appShell")
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(14, 12, 14, 0)
+        layout.setSpacing(12)
 
-        toolbar = QHBoxLayout()
-        toolbar.setContentsMargins(12, 8, 12, 8)
-        toolbar.setSpacing(10)
+        self.theme_header = ThemeHeader(
+            config.app_name,
+            "全局 Prompt 命令中心 · 搜索、编辑与组合",
+        )
+        layout.addWidget(self.theme_header)
+
+        toolbar_host = QWidget()
+        toolbar_host.setObjectName("commandBar")
+        toolbar_host.setFixedHeight(64)
+        toolbar = QHBoxLayout(toolbar_host)
+        toolbar.setContentsMargins(10, 9, 10, 9)
+        toolbar.setSpacing(7)
 
         self.search_input = QLineEdit()
+        self.search_input.setObjectName("globalSearch")
         self.search_input.setPlaceholderText(Messages.SEARCH_PLACEHOLDER)
+        self.search_input.setMinimumWidth(300)
         self.search_input.textChanged.connect(self._on_search)
         self.search_input.installEventFilter(self)
         toolbar.addWidget(self.search_input)
 
-        self.pin_btn = QPushButton("📌 置顶" if self._always_on_top else "置顶")
-        self.pin_btn.setMinimumWidth(72)
+        self.pin_btn = QPushButton("置顶")
+        self.pin_btn.setProperty("role", "toolbarToggle")
+        self.pin_btn.setMinimumWidth(64)
         self.pin_btn.setCheckable(True)
         self.pin_btn.setChecked(self._always_on_top)
         self.pin_btn.clicked.connect(self._toggle_always_on_top)
@@ -201,58 +225,78 @@ class MainWindow(QMainWindow, SearchMixin):
         self.import_menu.addAction("导入文件夹", self._on_import_folder)
 
         self.import_btn = QPushButton("导入")
+        self.import_btn.setProperty("role", "soft")
         self.import_btn.setMinimumWidth(72)
         self.import_btn.setMenu(self.import_menu)
         toolbar.addWidget(self.import_btn)
 
-        self.clipboard_create_btn = QPushButton("从剪贴板新建")
-        self.clipboard_create_btn.setMinimumWidth(128)
-        self.clipboard_create_btn.clicked.connect(self._on_create_from_clipboard)
-        toolbar.addWidget(self.clipboard_create_btn)
+        self.new_menu = QMenu(self)
+        self.new_menu.addAction("新建 Prompt", lambda: self._on_new_prompt(""))
+        self.new_menu.addAction("从剪贴板新建", self._on_create_from_clipboard)
+        self.new_btn = QPushButton("新建")
+        self.new_btn.setProperty("role", "soft")
+        self.new_btn.setMinimumWidth(68)
+        self.new_btn.setMenu(self.new_menu)
+        toolbar.addWidget(self.new_btn)
 
         self.template_menu = QMenu(self)
-        if config.show_template_button:
-            self.template_menu.addAction("使用模板", self._on_use_template_from_toolbar)
+        self.use_template_action = self.template_menu.addAction(
+            "使用模板", self._on_use_template_from_toolbar
+        )
         self.template_menu.addAction("保存为模板", self._on_save_as_template)
-        if config.enable_builtin_templates:
-            self.template_menu.addAction("导入内置模板", self._on_import_builtin)
+        self.builtin_template_action = self.template_menu.addAction(
+            "导入内置模板", self._on_import_builtin
+        )
+        self.builtin_template_action.setVisible(config.enable_builtin_templates)
 
         self.template_btn = QPushButton("模板")
+        self.template_btn.setProperty("role", "soft")
         self.template_btn.setMinimumWidth(72)
         self.template_btn.setMenu(self.template_menu)
+        self.template_btn.setVisible(config.show_template_button)
         toolbar.addWidget(self.template_btn)
 
-        if config.show_composer_button:
-            self.composer_btn = QPushButton("组合器")
-            self.composer_btn.setMinimumWidth(82)
-            self.composer_btn.clicked.connect(self._on_open_composer)
-            toolbar.addWidget(self.composer_btn)
+        self.composer_btn = QPushButton("组合器")
+        self.composer_btn.setProperty("role", "soft")
+        self.composer_btn.setMinimumWidth(82)
+        self.composer_btn.clicked.connect(self._on_open_composer)
+        self.composer_btn.setVisible(config.show_composer_button)
+        toolbar.addWidget(self.composer_btn)
 
-        toolbar.addSpacing(8)
-        opacity_label = QLabel("透明度:")
-        opacity_label.setMinimumWidth(52)
-        toolbar.addWidget(opacity_label)
+        toolbar.addSpacing(2)
+        opacity_host = QWidget()
+        opacity_host.setObjectName("inlineControl")
+        opacity_layout = QHBoxLayout(opacity_host)
+        opacity_layout.setContentsMargins(10, 2, 8, 2)
+        opacity_layout.setSpacing(7)
+        opacity_label = QLabel("透明度")
+        opacity_label.setObjectName("mutedText")
+        opacity_layout.addWidget(opacity_label)
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setMinimum(int(config.min_window_opacity * 100))
         self.opacity_slider.setMaximum(int(config.max_window_opacity * 100))
         self.opacity_slider.setValue(int(self._window_opacity * 100))
-        self.opacity_slider.setFixedWidth(126)
+        self.opacity_slider.setFixedWidth(96)
         self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
-        toolbar.addWidget(self.opacity_slider)
+        opacity_layout.addWidget(self.opacity_slider)
+        toolbar.addWidget(opacity_host)
 
-        self.settings_btn = QPushButton("⚙")
-        self.settings_btn.setFixedWidth(36)
+        self.settings_btn = QPushButton("设置")
+        self.settings_btn.setProperty("role", "soft")
+        self.settings_btn.setFixedWidth(64)
         self.settings_btn.setToolTip("设置")
         self.settings_btn.clicked.connect(self._on_settings)
         toolbar.addWidget(self.settings_btn)
 
-        layout.addLayout(toolbar)
+        layout.addWidget(toolbar_host)
 
         self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setObjectName("workspaceSplitter")
+        self.splitter.setHandleWidth(10)
 
         self.tree_panel = TreePanel()
-        self.tree_panel.setMinimumWidth(220)
-        self.tree_panel.setMaximumWidth(400)
+        self.tree_panel.setMinimumWidth(240)
+        self.tree_panel.setMaximumWidth(340)
         self.tree_panel.prompt_selected.connect(self._on_prompt_selected)
         self.tree_panel.folder_selected.connect(self._on_folder_selected)
         self.tree_panel.new_folder_requested.connect(self._on_new_folder)
@@ -269,9 +313,14 @@ class MainWindow(QMainWindow, SearchMixin):
         self.editor_panel.copy_requested.connect(self._on_copy)
         self.editor_panel.export_requested.connect(self._on_export)
         self.editor_panel.delete_requested.connect(self._on_delete_prompt)
+        self.editor_panel.metadata_changed.connect(self.tree_panel.load_tree)
         self.splitter.addWidget(self.editor_panel)
 
-        self.splitter.setSizes([280, 620])
+        self.splitter.setCollapsible(0, False)
+        self.splitter.setCollapsible(1, False)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setSizes([286, 900])
         layout.addWidget(self.splitter)
 
         self.search_popup = SearchPopupWindow(self)
@@ -288,7 +337,7 @@ class MainWindow(QMainWindow, SearchMixin):
         self.setWindowFlag(Qt.WindowStaysOnTopHint, self._always_on_top)
         self.show()
         if self._always_on_top:
-            self.pin_btn.setText("📌 置顶")
+            self.pin_btn.setText("置顶")
             self.pin_btn.setChecked(True)
         else:
             self.pin_btn.setText("置顶")
@@ -406,9 +455,11 @@ class MainWindow(QMainWindow, SearchMixin):
 
     def _on_settings(self):
         from app.ui.settings_dialog import SettingsDialog
+        previous_data_dir = config.data_dir
         dialog = SettingsDialog(self)
         if dialog.exec() == SettingsDialog.Accepted:
             QApplication.instance().setStyleSheet(app_stylesheet())
+            self.theme_header.apply_theme()
             self.tree_panel.apply_theme()
             self.editor_panel.apply_theme()
             self.search_popup.panel.apply_theme()
@@ -416,8 +467,35 @@ class MainWindow(QMainWindow, SearchMixin):
                 self.quick_window.apply_theme()
             self._setup_shortcuts()
             self.statusBar().showMessage("设置已保存", 2000)
+            self._always_on_top = config.always_on_top
+            self.setWindowFlag(Qt.WindowStaysOnTopHint, self._always_on_top)
+            self.pin_btn.setChecked(self._always_on_top)
+            self._window_opacity = config.default_window_opacity
+            self.setWindowOpacity(self._window_opacity)
+            self.opacity_slider.setValue(int(self._window_opacity * 100))
+            self.template_btn.setVisible(config.show_template_button)
+            self.composer_btn.setVisible(config.show_composer_button)
+            self.builtin_template_action.setVisible(config.enable_builtin_templates)
+            from app.services.backup_service import backup_service
+            backup_service.initialize(
+                Path(config_service.get("storage.backup_dir", "./backups"))
+            )
+            if config.data_dir != previous_data_dir:
+                config.data_dir.mkdir(parents=True, exist_ok=True)
+                config.export_dir.mkdir(parents=True, exist_ok=True)
+                from app.services.knowledge_base_service import knowledge_base_service
+                from app.services.tag_service import tag_service
+                from app.services.usage_service import usage_service
+                from app.services.vector_store import vector_store
+                knowledge_base_service.reload_storage()
+                tag_service.reload_storage()
+                usage_service.reload_storage()
+                vector_store.reload_storage()
+                search_service.rebuild_index()
+                self._update_watched_dirs()
             self.tree_panel.load_tree()
             self.restart_hotkey()
+            self.show()
 
     def _setup_tray(self):
         self.tray = TrayManager(self)
@@ -579,6 +657,8 @@ class MainWindow(QMainWindow, SearchMixin):
                 self.statusBar().showMessage(Messages.COPIED, 2000)
                 notification_service.success(self, Messages.COPIED)
                 state_service.add_recent_file(result.path)
+                from app.services.usage_service import usage_service
+                usage_service.record_copy(result.path)
                 self._on_copy_done()
 
     def _on_search_escape(self):
@@ -687,6 +767,9 @@ class MainWindow(QMainWindow, SearchMixin):
                 notification_service.success(self, Messages.COPIED)
                 rel = prompt.path.relative_to(config.data_dir).as_posix()
                 state_service.add_recent_file(rel)
+                from app.services.usage_service import usage_service
+                usage_service.record_copy(rel)
+                self.editor_panel.refresh_metadata()
                 self._on_copy_done()
 
     def _on_export(self):

@@ -53,6 +53,12 @@ class KnowledgeBaseService(Singleton):
             self._save_metadata()
         self._initialized = True
 
+    def reload_storage(self):
+        self._kb_dir = config.knowledge_base_dir
+        self._metadata_file = self._kb_dir / "metadata.json"
+        self._items = {}
+        self._initialized = False
+
     def _load_metadata(self):
         try:
             with open(self._metadata_file, "r", encoding="utf-8") as f:

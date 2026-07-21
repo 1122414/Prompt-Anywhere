@@ -1,7 +1,8 @@
 import shutil
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -10,6 +11,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -21,6 +25,7 @@ from app.services.file_service import PromptFile, file_service
 from app.services.search_service import search_service
 from app.services.state_service import state_service
 from app.ui.theme import current_palette, tree_stylesheet
+from app.utils.icon_utils import create_theme_icon
 
 _ICON_KEYS = [
     "SP_DirIcon",
@@ -32,6 +37,68 @@ _ICON_KEYS = [
     "SP_TrashIcon",
     "SP_NetworkIcon",
 ]
+
+
+class SidebarItemDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._palette = current_palette()
+
+    def refresh_theme(self):
+        self._palette = current_palette()
+
+    def paint(self, painter: QPainter, option, index):
+        view_option = QStyleOptionViewItem(option)
+        self.initStyleOption(view_option, index)
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing)
+        row = option.rect.adjusted(5, 2, -5, -2)
+        selected = bool(option.state & QStyle.State_Selected)
+        hovered = bool(option.state & QStyle.State_MouseOver)
+        if selected:
+            painter.setPen(QPen(QColor(self._palette["hairline_strong"]), 1))
+            painter.setBrush(QColor(self._palette["surface_active"]))
+            painter.drawRoundedRect(row, 10, 10)
+            marker = row.adjusted(3, 8, 0, -8)
+            marker.setWidth(3)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(self._palette["accent"]))
+            painter.drawRoundedRect(marker, 2, 2)
+        elif hovered:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(self._palette["surface_hover"]))
+            painter.drawRoundedRect(row, 10, 10)
+
+        icon_rect = row.adjusted(11, 0, 0, 0)
+        icon_rect.setWidth(18)
+        icon_rect.setHeight(18)
+        icon_rect.moveCenter(row.center())
+        icon_rect.moveLeft(row.left() + 12)
+        icon = index.data(Qt.DecorationRole)
+        if icon:
+            icon.paint(painter, icon_rect, Qt.AlignCenter)
+
+        item_role = index.data(Qt.UserRole + 1)
+        is_top_level = not index.parent().isValid()
+        font = QFont(view_option.font)
+        if is_top_level or item_role in ("folder", "special"):
+            font.setWeight(QFont.DemiBold)
+        painter.setFont(font)
+        painter.setPen(
+            QColor(self._palette["ink"] if selected or is_top_level else self._palette["body"])
+        )
+        text_rect = row.adjusted(40, 0, -10, 0)
+        text = view_option.fontMetrics.elidedText(
+            view_option.text,
+            Qt.ElideRight,
+            max(20, text_rect.width()),
+        )
+        painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, text)
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        height = 42 if not index.parent().isValid() else 38
+        return QSize(super().sizeHint(option, index).width(), height)
 
 
 class DraggableTreeWidget(QTreeWidget):
@@ -246,32 +313,54 @@ class TreePanel(QWidget):
     def _setup_ui(self):
         from app.constants import Messages
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        self.setObjectName("sidebarCard")
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(10, 10, 10, 10)
+        self._layout.setSpacing(10)
 
-        header = QHBoxLayout()
-        header.setContentsMargins(12, 10, 8, 10)
-        header.setSpacing(4)
+        self.header_host = QWidget()
+        self.header_host.setObjectName("sidebarHeader")
+        header = QHBoxLayout(self.header_host)
+        header.setContentsMargins(4, 2, 2, 2)
+        header.setSpacing(8)
+        self.header_text_host = QWidget()
+        header_text = QVBoxLayout(self.header_text_host)
+        header_text.setContentsMargins(0, 0, 0, 0)
+        header_text.setSpacing(2)
         self.header_label = QLabel(Messages.SIDEBAR_TITLE)
-        palette = current_palette()
-        self.header_label.setStyleSheet(f"color: {palette['ink']}; font-weight: 600; font-size: 13px;")
-        header.addWidget(self.header_label)
+        self.header_label.setObjectName("sidebarTitle")
+        self.summary_label = QLabel("你的 Prompt 工作空间")
+        self.summary_label.setObjectName("sidebarCaption")
+        header_text.addWidget(self.header_label)
+        header_text.addWidget(self.summary_label)
+        header.addWidget(self.header_text_host, 1)
         header.addStretch()
 
-        self.collapse_btn = QPushButton("《")
+        self.collapse_btn = QPushButton("‹")
+        self.collapse_btn.setProperty("role", "icon")
         self.collapse_btn.setFixedSize(24, 24)
-        self.collapse_btn.setStyleSheet(
-            f"QPushButton {{ border: none; background: transparent; color: {palette['muted']}; font-size: 12px; }}"
-            f"QPushButton:hover {{ background: {palette['surface_hover']}; color: {palette['ink']}; }}"
-        )
         self.collapse_btn.setToolTip("收起侧边栏")
         self.collapse_btn.clicked.connect(self._toggle_collapse)
         header.addWidget(self.collapse_btn)
+        self._layout.addWidget(self.header_host)
 
-        layout.addLayout(header)
+        self.quick_actions_host = QWidget()
+        self.quick_actions_host.setObjectName("sidebarActions")
+        quick_actions = QHBoxLayout(self.quick_actions_host)
+        quick_actions.setContentsMargins(0, 0, 0, 0)
+        quick_actions.setSpacing(6)
+        self.new_prompt_btn = QPushButton("＋ Prompt")
+        self.new_prompt_btn.setProperty("role", "sidebarPrimary")
+        self.new_prompt_btn.clicked.connect(self._on_new_prompt)
+        quick_actions.addWidget(self.new_prompt_btn, 1)
+        self.new_folder_btn = QPushButton("新建文件夹")
+        self.new_folder_btn.setProperty("role", "sidebarSoft")
+        self.new_folder_btn.clicked.connect(self._on_new_folder)
+        quick_actions.addWidget(self.new_folder_btn, 1)
+        self._layout.addWidget(self.quick_actions_host)
 
         self.tree = DraggableTreeWidget(self)
+        self.tree.setObjectName("promptTree")
         self.tree.setHeaderHidden(True)
         self.tree.setRootIsDecorated(False)
         self.tree.setItemsExpandable(True)
@@ -282,19 +371,22 @@ class TreePanel(QWidget):
         self.tree.itemCollapsed.connect(self._on_item_collapsed)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._show_context_menu)
+        self.tree_delegate = SidebarItemDelegate(self.tree)
+        self.tree.setItemDelegate(self.tree_delegate)
         self.tree.setStyleSheet(tree_stylesheet())
-        layout.addWidget(self.tree)
+        self._layout.addWidget(self.tree, 1)
+
+        self.footer_label = QLabel("拖拽排序  ·  右键管理")
+        self.footer_label.setObjectName("sidebarFooter")
+        self.footer_label.setAlignment(Qt.AlignCenter)
+        self._layout.addWidget(self.footer_label)
 
         self._collapsed = False
         self._original_width = config.ui_sidebar_width
 
     def apply_theme(self):
-        palette = current_palette()
-        self.header_label.setStyleSheet(f"color: {palette['ink']}; font-weight: 600; font-size: 13px;")
-        self.collapse_btn.setStyleSheet(
-            f"QPushButton {{ border: none; background: transparent; color: {palette['muted']}; font-size: 12px; }}"
-            f"QPushButton:hover {{ background: {palette['surface_hover']}; color: {palette['ink']}; }}"
-        )
+        self.tree_delegate.refresh_theme()
+        self._refresh_tree_icons()
         self.tree.setStyleSheet(tree_stylesheet())
         self.tree.viewport().update()
 
@@ -302,36 +394,80 @@ class TreePanel(QWidget):
         parent = self.parentWidget()
         if not parent:
             return
-        splitter = None
-        for child in parent.children():
-            if isinstance(child, QSplitter):
-                splitter = child
-                break
+        splitter = parent if isinstance(parent, QSplitter) else None
+        if splitter is None:
+            for child in parent.children():
+                if isinstance(child, QSplitter):
+                    splitter = child
+                    break
         if not splitter:
             return
         if self._collapsed:
-            self.setMaximumWidth(400)
-            self.setMinimumWidth(180)
-            self.collapse_btn.setText("《")
+            self.setMaximumWidth(340)
+            self.setMinimumWidth(220)
+            self._layout.setContentsMargins(10, 10, 10, 10)
+            self.header_host.layout().setContentsMargins(4, 2, 2, 2)
+            self.collapse_btn.setText("‹")
             self.collapse_btn.setToolTip("收起侧边栏")
             if splitter.count() >= 2:
                 splitter.setSizes([self._original_width, splitter.width() - self._original_width])
-            self.tree.setVisible(True)
+            for widget in (
+                self.header_text_host,
+                self.quick_actions_host,
+                self.tree,
+                self.footer_label,
+            ):
+                widget.setVisible(True)
             self._collapsed = False
         else:
             self._original_width = self.width()
             self.setMaximumWidth(40)
             self.setMinimumWidth(40)
-            self.collapse_btn.setText("》")
+            self._layout.setContentsMargins(6, 8, 6, 8)
+            self.header_host.layout().setContentsMargins(0, 0, 0, 0)
+            self.collapse_btn.setText("›")
             self.collapse_btn.setToolTip("展开侧边栏")
-            self.tree.setVisible(False)
+            for widget in (
+                self.header_text_host,
+                self.quick_actions_host,
+                self.tree,
+                self.footer_label,
+            ):
+                widget.setVisible(False)
             self._collapsed = True
 
     def _folder_icon(self, folder_path):
         icon_key = config.folder_icon(folder_path)
         if icon_key and hasattr(self.style().StandardPixmap, icon_key):
             return self.style().standardIcon(getattr(self.style().StandardPixmap, icon_key))
-        return self.style().standardIcon(self.style().StandardPixmap.SP_DirIcon)
+        return create_theme_icon("folder", current_palette()["accent"])
+
+    def _file_icon(self):
+        return create_theme_icon("file", current_palette()["muted"])
+
+    def _special_icon(self, kind: str):
+        icon_kind = {
+            "favorites": "star",
+            "recent": "clock",
+            "all": "library",
+        }.get(kind, "library")
+        return create_theme_icon(icon_kind, current_palette()["accent"])
+
+    def _refresh_tree_icons(self):
+        def refresh(item):
+            item_type = item.data(0, Qt.UserRole + 1)
+            special = item.data(0, Qt.UserRole + 2)
+            if special in ("all", "favorites", "recent"):
+                item.setIcon(0, self._special_icon(special))
+            elif item_type == "folder":
+                item.setIcon(0, self._folder_icon(self._get_item_path(item)))
+            elif item_type == "file":
+                item.setIcon(0, self._file_icon())
+            for index in range(item.childCount()):
+                refresh(item.child(index))
+
+        for index in range(self.tree.topLevelItemCount()):
+            refresh(self.tree.topLevelItem(index))
 
     def _set_item_name(self, item, name: str):
         item.setData(0, Qt.UserRole + 3, name)
@@ -531,18 +667,20 @@ class TreePanel(QWidget):
         self.tree.clear()
 
         if not config.data_dir.exists():
+            self.summary_label.setText("数据目录尚未创建")
             return
 
         all_item = QTreeWidgetItem(self.tree)
-        all_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_DirHomeIcon))
+        all_item.setIcon(0, self._special_icon("all"))
         all_item.setData(0, Qt.UserRole + 1, "folder")
+        all_item.setData(0, Qt.UserRole + 2, "all")
         all_item.setExpanded(True)
         self._set_item_name(all_item, Messages.ALL_PROMPTS)
 
         favs = state_service.get_favorites()
         if favs:
             fav_item = QTreeWidgetItem(self.tree)
-            fav_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_DialogApplyButton))
+            fav_item.setIcon(0, self._special_icon("favorites"))
             fav_item.setData(0, Qt.UserRole + 1, "special")
             fav_item.setData(0, Qt.UserRole + 2, "favorites")
             fav_item.setExpanded(True)
@@ -552,14 +690,14 @@ class TreePanel(QWidget):
                 if full.exists():
                     child = QTreeWidgetItem(fav_item)
                     child.setText(0, full.name)
-                    child.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
+                    child.setIcon(0, self._file_icon())
                     child.setData(0, Qt.UserRole, PromptFile(full))
                     child.setData(0, Qt.UserRole + 1, "file")
 
         recent = state_service.get_recent_files()
         if recent:
             recent_item = QTreeWidgetItem(self.tree)
-            recent_item.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_ComputerIcon))
+            recent_item.setIcon(0, self._special_icon("recent"))
             recent_item.setData(0, Qt.UserRole + 1, "special")
             recent_item.setData(0, Qt.UserRole + 2, "recent")
             recent_item.setExpanded(False)
@@ -569,14 +707,14 @@ class TreePanel(QWidget):
                 if full.exists():
                     child = QTreeWidgetItem(recent_item)
                     child.setText(0, full.name)
-                    child.setIcon(0, self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon))
+                    child.setIcon(0, self._file_icon())
                     child.setData(0, Qt.UserRole, PromptFile(full))
                     child.setData(0, Qt.UserRole + 1, "file")
 
         dirs = sorted([d for d in config.data_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
         files = self._ordered_files("", [f for f in config.data_dir.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
 
-        file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
+        file_icon = self._file_icon()
 
         for d in dirs:
             rel_path = str(d.relative_to(config.data_dir)).replace("\\", "/")
@@ -594,6 +732,8 @@ class TreePanel(QWidget):
             file_item.setData(0, Qt.UserRole, PromptFile(f))
             file_item.setData(0, Qt.UserRole + 1, "file")
 
+        prompt_count = sum(1 for _ in file_service.iter_all_prompts())
+        self.summary_label.setText(f"{prompt_count} 个 Prompt · 主题已同步")
         self._restore_expanded_paths(expanded_paths)
 
     def _get_expanded_paths(self):
@@ -626,7 +766,7 @@ class TreePanel(QWidget):
         folder_path = dir_path.relative_to(config.data_dir).as_posix()
         files = self._ordered_files(folder_path, [f for f in dir_path.iterdir() if f.is_file() and f.suffix.lower() in config.supported_prompt_extensions])
 
-        file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
+        file_icon = self._file_icon()
 
         for d in dirs:
             rel_path = str(d.relative_to(config.data_dir)).replace("\\", "/")
@@ -682,7 +822,7 @@ class TreePanel(QWidget):
         parent_item = self._find_item_by_path(parent_path) if parent_path else None
         if parent_item is None:
             parent_item = self.tree
-        file_icon = self.style().standardIcon(self.style().StandardPixmap.SP_FileIcon)
+        file_icon = self._file_icon()
         file_item = QTreeWidgetItem(parent_item)
         file_item.setText(0, prompt.path.name)
         file_item.setIcon(0, file_icon)
@@ -727,6 +867,8 @@ class TreePanel(QWidget):
         if clipboard_service.copy_text(content):
             rel = prompt.path.relative_to(config.data_dir).as_posix()
             state_service.add_recent_file(rel)
+            from app.services.usage_service import usage_service
+            usage_service.record_copy(rel)
 
     def _add_to_composer(self, prompt: PromptFile):
         from app.services.composer_service import composer_service

@@ -23,6 +23,14 @@ class VectorStore(Singleton):
     def _ensure_dir(self):
         self._index_dir.mkdir(parents=True, exist_ok=True)
 
+    def reload_storage(self):
+        self._index_dir = config.knowledge_base_dir / "vector_index"
+        self._embeddings_file = self._index_dir / "embeddings.npy"
+        self._items_file = self._index_dir / "items.json"
+        self._embeddings = None
+        self._items = []
+        self._loaded = False
+
     def _load(self):
         if self._loaded:
             return

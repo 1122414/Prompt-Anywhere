@@ -1,6 +1,6 @@
 # app/ui — PySide6 Widgets
 
-**12 files.** All UI components using PySide6/Qt.
+All UI components using PySide6/Qt.
 
 ## OVERVIEW
 
@@ -18,7 +18,11 @@ ui/
 ├── search_popup.py        # SearchPopupWindow: standalone search result window (StaysOnTop)
 ├── composer_dialog.py     # ComposerDialog: multi-file prompt composition (splitter layout)
 ├── dialogs.py             # CategoryDialog, TemplateDialog, VariableNameDialog, SearchDialog
-├── settings_dialog.py     # SettingsDialog: 7-tab settings (hotkey, UI, storage, model, backup, etc.)
+├── settings_dialog.py     # SettingsDialog: 11-page sidebar navigation (appearance, data, model, etc.)
+├── theme.py               # Built-in/custom palettes, QSS, validation, theme persistence helpers
+├── theme_pack.py          # Manifest-driven reusable background theme pack loader
+├── theme_editor_dialog.py # Visual custom-theme editor with live preview and JSON round-trip
+├── theme_widgets.py       # Theme-aware header, artwork rendering, and variant preview
 ├── ai_template_dialog.py  # AITemplateDialog: AI/rule/hybrid variable detection
 ├── tray.py                # TrayManager: system tray icon + context menu
 └── __init__.py            # Empty
@@ -37,6 +41,7 @@ ui/
 | Composer | `composer_dialog.py` | `ComposerDialog` (QDialog) |
 | Dialogs | `dialogs.py` | `CategoryDialog`, `TemplateDialog`, etc. |
 | Settings | `settings_dialog.py` | `SettingsDialog` (QDialog) |
+| Theme system | `theme.py` + `theme_pack.py` + `theme_editor_dialog.py` | Palettes, background packs, editor, import/export |
 | AI template | `ai_template_dialog.py` | `AITemplateDialog` (QDialog) |
 | System tray | `tray.py` | `TrayManager` (QSystemTrayIcon) |
 

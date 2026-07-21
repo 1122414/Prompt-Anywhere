@@ -17,7 +17,8 @@ from app.services.usage_service import usage_service
 from app.services.notification_service import notification_service
 from app.ui.search_mixin import SearchMixin
 from app.ui.search_result_panel import SearchResultPanel
-from app.ui.theme import muted_label_stylesheet
+from app.ui.theme import empty_label_stylesheet, muted_label_stylesheet
+from app.ui.theme_widgets import ThemeHeader
 
 
 class QuickWindow(QMainWindow, SearchMixin):
@@ -41,7 +42,15 @@ class QuickWindow(QMainWindow, SearchMixin):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
+        self.theme_header = ThemeHeader(
+            "Prompt Spotlight",
+            "键入关键词，回车即可复制",
+            compact=True,
+        )
+        layout.addWidget(self.theme_header)
+
         self.search_input = QLineEdit()
+        self.search_input.setObjectName("globalSearch")
         self.search_input.setPlaceholderText(Messages.SEARCH_PLACEHOLDER)
         self.search_input.textChanged.connect(self._on_search_input)
         self.search_input.installEventFilter(self)
@@ -51,14 +60,24 @@ class QuickWindow(QMainWindow, SearchMixin):
         self.search_result_panel.result_selected.connect(self._on_result_selected)
         self.search_result_panel.result_copy_requested.connect(self._on_result_copy)
         self.search_result_panel.escape_pressed.connect(self._on_escape)
-        layout.addWidget(self.search_result_panel)
+        self.search_result_panel.hide()
+        layout.addWidget(self.search_result_panel, 1)
+
+        self.empty_state = QLabel(
+            "搜索你的 Prompt\n\n支持文件名、内容、拼音与模糊匹配"
+        )
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        self.empty_state.setStyleSheet(empty_label_stylesheet())
+        layout.addWidget(self.empty_state, 1)
 
         self.hint_label = QLabel("↑↓ 选择  |  Enter 复制并关闭  |  Shift+Enter 复制  |  Esc 关闭")
         self.hint_label.setStyleSheet(muted_label_stylesheet())
         layout.addWidget(self.hint_label)
 
     def apply_theme(self):
+        self.theme_header.apply_theme()
         self.hint_label.setStyleSheet(muted_label_stylesheet())
+        self.empty_state.setStyleSheet(empty_label_stylesheet())
         self.search_result_panel.apply_theme()
 
     def showEvent(self, event):
@@ -83,8 +102,12 @@ class QuickWindow(QMainWindow, SearchMixin):
 
     def _clear_search_results(self):
         self.search_result_panel.clear_results()
+        self.search_result_panel.hide()
+        self.empty_state.show()
 
     def _display_search_results(self, results, keyword):
+        self.empty_state.hide()
+        self.search_result_panel.show()
         self.search_result_panel.set_results(results, keyword)
         if self.search_result_panel.result_list.count() > 0:
             self.search_result_panel.select_first()

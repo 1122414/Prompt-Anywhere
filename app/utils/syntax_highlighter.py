@@ -23,7 +23,7 @@ class MarkdownHighlighter(QSyntaxHighlighter):
         self.italic_format.setFontItalic(True)
 
         self.code_format = QTextCharFormat()
-        self.code_format.setFontFamily("Consolas, monospace")
+        self.code_format.setFontFamilies(["Cascadia Code", "Consolas", "monospace"])
         self.code_format.setForeground(QColor(palette["warning"]))
         self.code_format.setBackground(QColor(palette["surface_active"]))
 

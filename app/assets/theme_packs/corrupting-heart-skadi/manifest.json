@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "corrupting-heart-skadi",
+  "name": "浊心斯卡蒂",
+  "description": "基于三个角色形态制作的可切换横向桌面主题包。",
+  "default_variant": "abyssal-omen",
+  "rights_notice": "本主题包为基于用户参考图生成的非官方同人素材。角色与《明日方舟》相关权利归其权利人所有；复用或分发前请自行确认目标项目的授权与合规要求。",
+  "base_palette": {
+    "canvas": "#07111F",
+    "surface": "#0B1725",
+    "surface_elevated": "#102235",
+    "surface_panel": "#0D1C2C",
+    "surface_hover": "#162B3E",
+    "surface_active": "#243647",
+    "hairline": "#203448",
+    "hairline_soft": "rgba(232, 228, 225, 0.08)",
+    "hairline_strong": "#385066",
+    "ink": "#F1EFEC",
+    "body": "#D6D9DD",
+    "muted": "#8E9CAA",
+    "subtle": "#627384",
+    "primary": "#C85C68",
+    "on_primary": "#FFF8F6",
+    "accent": "#D06B76",
+    "accent_hover": "#E28B94",
+    "accent_soft": "rgba(200, 92, 104, 0.18)",
+    "success": "#79AA9A",
+    "warning": "#D3A65D",
+    "error": "#E77878",
+    "highlight": "#D9A6AC"
+  },
+  "variants": [
+    {
+      "id": "abyssal-omen",
+      "name": "深海异兆",
+      "description": "红黑猎装、青色海嗣辉光与深海遗迹。",
+      "background": "backgrounds/abyssal-omen.png",
+      "palette": {
+        "surface_active": "#173346",
+        "hairline_strong": "#315A6D",
+        "primary": "#D45D6B",
+        "accent": "#35C7DD",
+        "accent_hover": "#6EDCE9",
+        "accent_soft": "rgba(53, 199, 221, 0.18)",
+        "highlight": "#9BE9EF"
+      }
+    },
+    {
+      "id": "crimson-coronation",
+      "name": "血月冠冕",
+      "description": "冠冕、绯红礼服与海底仪式穹顶。",
+      "background": "backgrounds/crimson-coronation.png",
+      "palette": {
+        "canvas": "#0B0E1E",
+        "surface": "#121426",
+        "surface_elevated": "#191A30",
+        "surface_panel": "#14162B",
+        "surface_hover": "#211F37",
+        "surface_active": "#352236",
+        "hairline": "#34273F",
+        "hairline_strong": "#5B3A52",
+        "primary": "#D05B6A",
+        "accent": "#D36A78",
+        "accent_hover": "#F08E9A",
+        "accent_soft": "rgba(211, 106, 120, 0.19)",
+        "muted": "#A194A7",
+        "subtle": "#75697D",
+        "highlight": "#F1B3BC"
+      }
+    },
+    {
+      "id": "serene-tide",
+      "name": "静海归潮",
+      "description": "青白薄纱、金色权杖与月下沉没遗迹。",
+      "background": "backgrounds/serene-tide.png",
+      "palette": {
+        "canvas": "#081522",
+        "surface": "#0D1C29",
+        "surface_elevated": "#132735",
+        "surface_panel": "#10222F",
+        "surface_hover": "#193443",
+        "surface_active": "#21434D",
+        "hairline": "#24404C",
+        "hairline_strong": "#3F6970",
+        "primary": "#75BFB9",
+        "on_primary": "#061318",
+        "accent": "#47B8BD",
+        "accent_hover": "#83D8D3",
+        "accent_soft": "rgba(71, 184, 189, 0.18)",
+        "muted": "#94A9AD",
+        "subtle": "#6B8288",
+        "highlight": "#B7E6E2"
+      }
+    }
+  ]
+}

@@ -18,7 +18,13 @@ def _base_path() -> Path:
     return Path(__file__).parent.parent
 
 
+_ENV_BEFORE_DOTENV = dict(os.environ)
 load_dotenv(_base_path() / ".env")
+_DOTENV_INJECTED = {
+    key: value
+    for key, value in os.environ.items()
+    if key not in _ENV_BEFORE_DOTENV
+}
 
 _ENV_TO_YAML_PATH: Dict[str, List[str]] = {
     "APP_NAME": ["app", "name"],
@@ -152,6 +158,28 @@ class Config(Singleton):
             logger.debug(f"get_pref({key}) failed: {e}")
         return default
 
+    def _get_user_setting(self, key: str, env_key: str, default: Any = None) -> Any:
+        env_value = os.getenv(env_key)
+        dotenv_value = _DOTENV_INJECTED.get(env_key)
+        if (
+            env_value is not None
+            and env_value != ""
+            and (
+                env_key in _ENV_BEFORE_DOTENV
+                or dotenv_value is None
+                or env_value != dotenv_value
+            )
+        ):
+            return self._get_env(env_key, default)
+        try:
+            from app.services.config_service import config_service
+            user_value = config_service.get_user(key, None)
+            if user_value is not None:
+                return user_value
+        except Exception as e:
+            logger.debug(f"get_user_setting({key}) failed: {e}")
+        return self._get_env(env_key, default)
+
     @property
     def app_name(self) -> str:
         return self._get_env("APP_NAME", "Prompt Anywhere")
@@ -167,7 +195,7 @@ class Config(Singleton):
     # ============ 热键配置 ============
     @property
     def hotkey(self) -> str:
-        return self._get_env("GLOBAL_HOTKEY", "ctrl+alt+p")
+        return self._get_user_setting("behavior.hotkey", "GLOBAL_HOTKEY", "ctrl+alt+p")
 
     @property
     def quick_mode_hotkey(self) -> str:
@@ -176,11 +204,11 @@ class Config(Singleton):
     # ============ 窗口配置 ============
     @property
     def always_on_top(self) -> bool:
-        return self._get_env("ALWAYS_ON_TOP", True)
+        return self._get_user_setting("window.always_on_top", "ALWAYS_ON_TOP", True)
 
     @property
     def start_minimized(self) -> bool:
-        return self._get_env("START_MINIMIZED", False)
+        return self._get_user_setting("behavior.start_minimized", "START_MINIMIZED", False)
 
     @property
     def default_window_width(self) -> int:
@@ -200,7 +228,7 @@ class Config(Singleton):
 
     @property
     def default_window_opacity(self) -> float:
-        return float(self._get_env("DEFAULT_WINDOW_OPACITY", "1.0"))
+        return float(self._get_user_setting("window.opacity", "DEFAULT_WINDOW_OPACITY", "1.0"))
 
     @property
     def min_window_opacity(self) -> float:
@@ -213,12 +241,12 @@ class Config(Singleton):
     # ============ 存储配置 ============
     @property
     def data_dir(self) -> Path:
-        path = self._get_env("DATA_DIR", "./data")
+        path = self._get_user_setting("storage.data_dir", "DATA_DIR", "./data")
         return Path(path).resolve()
 
     @property
     def export_dir(self) -> Path:
-        path = self._get_env("EXPORT_DIR", "./exports")
+        path = self._get_user_setting("storage.export_dir", "EXPORT_DIR", "./exports")
         return Path(path).resolve()
 
     @property
@@ -453,23 +481,23 @@ class Config(Singleton):
     # ============ 模型配置 ============
     @property
     def model_provider(self) -> str:
-        return self._get_env("MODEL_PROVIDER", "")
+        return self._get_user_setting("model.provider", "MODEL_PROVIDER", "")
 
     @property
     def model_name(self) -> str:
-        return self._get_env("MODEL_NAME", "")
+        return self._get_user_setting("model.name", "MODEL_NAME", "")
 
     @property
     def model_api_key(self) -> str:
-        return self._get_env("MODEL_API_KEY", "")
+        return self._get_user_setting("model.api_key", "MODEL_API_KEY", "")
 
     @property
     def model_base_url(self) -> str:
-        return self._get_env("MODEL_BASE_URL", "")
+        return self._get_user_setting("model.base_url", "MODEL_BASE_URL", "")
 
     @property
     def model_temperature(self) -> float:
-        return float(self._get_env("MODEL_TEMPERATURE", "0.7"))
+        return float(self._get_user_setting("model.temperature", "MODEL_TEMPERATURE", "0.7"))
 
     # ============ 模板变量配置 ============
     @property
@@ -552,11 +580,19 @@ class Config(Singleton):
     # ============ UI 按钮显示配置 ============
     @property
     def show_template_button(self) -> bool:
-        return self._get_pref("show_template_button", self._get_env("SHOW_TEMPLATE_BUTTON", True))
+        return self._get_user_setting(
+            "features.template_variables",
+            "SHOW_TEMPLATE_BUTTON",
+            self._get_pref("show_template_button", True),
+        )
 
     @property
     def show_composer_button(self) -> bool:
-        return self._get_pref("show_composer_button", self._get_env("SHOW_COMPOSER_BUTTON", True))
+        return self._get_user_setting(
+            "features.composer",
+            "SHOW_COMPOSER_BUTTON",
+            self._get_pref("show_composer_button", True),
+        )
 
     @property
     def composer_window_width(self) -> int:
@@ -584,7 +620,11 @@ class Config(Singleton):
 
     @property
     def enable_builtin_templates(self) -> bool:
-        return self._get_pref("enable_builtin_templates", self._get_env("ENABLE_BUILTIN_TEMPLATES", True))
+        return self._get_user_setting(
+            "features.builtin_templates",
+            "ENABLE_BUILTIN_TEMPLATES",
+            self._get_pref("enable_builtin_templates", True),
+        )
 
     # ============ 文件夹图标配置 ============
     def folder_icon(self, folder_path: str) -> str:

@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMessageBox,
     QPlainTextEdit,
@@ -26,6 +27,7 @@ class EditorPanel(QWidget):
     export_requested = Signal()
     delete_requested = Signal()
     mode_changed = Signal(str)
+    metadata_changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -39,47 +41,94 @@ class EditorPanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
+        self.setObjectName("editorCard")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(11)
 
-        toolbar = QHBoxLayout()
+        toolbar_host = QWidget()
+        toolbar_host.setObjectName("editorToolbar")
+        toolbar = QHBoxLayout(toolbar_host)
+        toolbar.setContentsMargins(0, 0, 0, 0)
+        toolbar.setSpacing(7)
 
-        self.mode_edit_btn = QPushButton("编辑模式")
+        mode_host = QWidget()
+        mode_host.setObjectName("modeSegment")
+        mode_layout = QHBoxLayout(mode_host)
+        mode_layout.setContentsMargins(3, 3, 3, 3)
+        mode_layout.setSpacing(2)
+
+        self.mode_edit_btn = QPushButton("编辑")
+        self.mode_edit_btn.setProperty("role", "segment")
         self.mode_edit_btn.setCheckable(True)
+        self.mode_edit_btn.setToolTip("编辑 Markdown 原文")
         self.mode_edit_btn.clicked.connect(lambda: self.set_mode(AppConstants.MODE_EDIT))
-        toolbar.addWidget(self.mode_edit_btn)
+        mode_layout.addWidget(self.mode_edit_btn)
 
-        self.mode_preview_btn = QPushButton("渲染模式")
+        self.mode_preview_btn = QPushButton("预览")
+        self.mode_preview_btn.setProperty("role", "segment")
         self.mode_preview_btn.setCheckable(True)
+        self.mode_preview_btn.setToolTip("查看 Markdown 渲染效果")
         self.mode_preview_btn.clicked.connect(lambda: self.set_mode(AppConstants.MODE_PREVIEW))
-        toolbar.addWidget(self.mode_preview_btn)
+        mode_layout.addWidget(self.mode_preview_btn)
+        toolbar.addWidget(mode_host)
 
         toolbar.addStretch()
 
         self.ai_template_btn = QPushButton("智能模板化")
+        self.ai_template_btn.setProperty("role", "soft")
         self.ai_template_btn.clicked.connect(self._on_ai_template)
         toolbar.addWidget(self.ai_template_btn)
 
         self.copy_btn = QPushButton("复制")
+        self.copy_btn.setProperty("role", "primary")
         self.copy_btn.clicked.connect(self.copy_requested.emit)
         toolbar.addWidget(self.copy_btn)
 
         self.save_btn = QPushButton("保存")
+        self.save_btn.setProperty("role", "soft")
         self.save_btn.clicked.connect(self.save_requested.emit)
         toolbar.addWidget(self.save_btn)
 
         self.export_btn = QPushButton("导出")
+        self.export_btn.setProperty("role", "soft")
         self.export_btn.clicked.connect(self.export_requested.emit)
         toolbar.addWidget(self.export_btn)
 
         self.delete_btn = QPushButton("删除")
+        self.delete_btn.setProperty("role", "danger")
         self.delete_btn.clicked.connect(self.delete_requested.emit)
         toolbar.addWidget(self.delete_btn)
 
-        layout.addLayout(toolbar)
+        layout.addWidget(toolbar_host)
+
+        metadata_host = QWidget()
+        metadata_host.setObjectName("metadataBar")
+        metadata = QHBoxLayout(metadata_host)
+        metadata.setContentsMargins(12, 7, 8, 7)
+        metadata.setSpacing(6)
+        self.meta_label = QLabel("选择 Prompt 后显示字数与使用信息")
+        self.meta_label.setObjectName("mutedText")
+        metadata.addWidget(self.meta_label, 1)
+        self.favorite_btn = QPushButton("收藏")
+        self.favorite_btn.setProperty("role", "chip")
+        self.favorite_btn.setCheckable(True)
+        self.favorite_btn.setToolTip("收藏后会在侧栏与搜索排序中优先显示")
+        self.favorite_btn.clicked.connect(self._toggle_favorite)
+        metadata.addWidget(self.favorite_btn)
+        self.tags_btn = QPushButton("标签")
+        self.tags_btn.setProperty("role", "chip")
+        self.tags_btn.setToolTip("使用逗号分隔多个标签")
+        self.tags_btn.clicked.connect(self._edit_tags)
+        metadata.addWidget(self.tags_btn)
+        self.rating_btn = QPushButton("评分")
+        self.rating_btn.setProperty("role", "chip")
+        self.rating_btn.clicked.connect(self._edit_rating)
+        metadata.addWidget(self.rating_btn)
+        layout.addWidget(metadata_host)
 
         self.editor = QPlainTextEdit()
+        self.editor.setObjectName("contentSurface")
         self.editor.textChanged.connect(self._on_text_changed)
         self.editor.installEventFilter(self)
         self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -89,6 +138,7 @@ class EditorPanel(QWidget):
         layout.addWidget(self.editor)
 
         self.preview = QTextBrowser()
+        self.preview.setObjectName("contentSurface")
         self.preview.setOpenExternalLinks(True)
         self.preview.installEventFilter(self)
         self.preview.setStyleSheet(preview_stylesheet())
@@ -145,6 +195,7 @@ class EditorPanel(QWidget):
         if self._current_prompt:
             self._is_modified = True
             self._update_title()
+            self._update_metadata()
             self.content_changed.emit()
 
     def _update_title(self):
@@ -175,6 +226,9 @@ class EditorPanel(QWidget):
         self.save_btn.setEnabled(not self._is_folder_preview and has_prompt and self._is_modified)
         self.export_btn.setEnabled(not self._is_folder_preview and has_prompt)
         self.delete_btn.setEnabled(not self._is_folder_preview and has_prompt)
+        self.favorite_btn.setVisible(not self._is_folder_preview and has_prompt)
+        self.tags_btn.setVisible(not self._is_folder_preview and has_prompt)
+        self.rating_btn.setVisible(not self._is_folder_preview and has_prompt)
 
     def set_mode(self, mode: str):
         if mode not in (AppConstants.MODE_EDIT, AppConstants.MODE_PREVIEW):
@@ -216,6 +270,7 @@ class EditorPanel(QWidget):
 
         self._update_visibility()
         self._update_title()
+        self._update_metadata()
         return True
 
     def show_folder_preview(self, folder_path: str, prompts: list[PromptFile]):
@@ -230,7 +285,95 @@ class EditorPanel(QWidget):
         self.preview.setHtml(self._build_folder_preview_html(folder_path, prompts))
         self._apply_preview_document_zoom()
         self._update_visibility()
+        self._update_metadata()
         self.window().setWindowTitle(f"{folder_path or '全部 Prompt'} - {config.app_name}")
+
+    def _prompt_rel_path(self) -> str:
+        if not self._current_prompt:
+            return ""
+        try:
+            return self._current_prompt.path.relative_to(config.data_dir).as_posix()
+        except ValueError:
+            return self._current_prompt.path.as_posix()
+
+    def _update_metadata(self):
+        if self._is_folder_preview:
+            count = len(self._folder_preview_prompts)
+            self.meta_label.setText(f"{self._folder_preview_path or '全部 Prompt'} · {count} 个文件")
+            return
+        if not self._current_prompt:
+            self.meta_label.setText("选择 Prompt 后显示字数与使用信息")
+            return
+        text = self.editor.toPlainText()
+        chars = len(text)
+        lines = text.count("\n") + 1 if text else 0
+        approx_tokens = (chars + 3) // 4
+        rel = self._prompt_rel_path()
+        from app.services.state_service import state_service
+        from app.services.tag_service import tag_service
+        from app.services.usage_service import usage_service
+        tags = tag_service.get_tags_for_file(rel)
+        stats = usage_service.get_stats(rel)
+        self.meta_label.setText(
+            f"{rel}  ·  {chars} 字符  ·  {lines} 行  ·  约 {approx_tokens} tokens"
+            f"  ·  已复制 {stats.get('copy_count', 0)} 次"
+        )
+        self.favorite_btn.setText("已收藏" if state_service.is_favorite(rel) else "收藏")
+        self.favorite_btn.setChecked(state_service.is_favorite(rel))
+        self.tags_btn.setText(f"标签 {len(tags)}" if tags else "添加标签")
+        rating = int(stats.get("rating", 0))
+        self.rating_btn.setText(f"评分 {rating}/5" if rating else "评分")
+
+    def _toggle_favorite(self):
+        rel = self._prompt_rel_path()
+        if not rel:
+            return
+        from app.services.state_service import state_service
+        if state_service.is_favorite(rel):
+            state_service.remove_favorite(rel)
+        else:
+            state_service.add_favorite(rel)
+        self._update_metadata()
+        self.metadata_changed.emit()
+
+    def _edit_tags(self):
+        rel = self._prompt_rel_path()
+        if not rel:
+            return
+        from app.services.tag_service import tag_service
+        existing = tag_service.get_tags_for_file(rel)
+        value, ok = QInputDialog.getText(
+            self,
+            "管理标签",
+            "标签（使用逗号分隔）：",
+            text=", ".join(existing),
+        )
+        if not ok:
+            return
+        requested = {tag.strip() for tag in value.replace("，", ",").split(",") if tag.strip()}
+        for tag in set(existing) - requested:
+            tag_service.remove_tag(rel, tag)
+        for tag in requested - set(existing):
+            tag_service.add_tag(rel, tag)
+        self._update_metadata()
+        self.metadata_changed.emit()
+
+    def _edit_rating(self):
+        rel = self._prompt_rel_path()
+        if not rel:
+            return
+        from app.services.usage_service import usage_service
+        current = int(usage_service.get_stats(rel).get("rating", 0))
+        rating, ok = QInputDialog.getInt(
+            self, "Prompt 评分", "评分（0 表示未评分）：", current, 0, 5
+        )
+        if ok:
+            usage_service.set_rating(rel, rating)
+            self._update_metadata()
+            self.metadata_changed.emit()
+
+    def refresh_metadata(self):
+        self._update_metadata()
 
     def _apply_preview_document_zoom(self):
         steps = self._zoom_font_size - 13
@@ -277,12 +420,20 @@ class EditorPanel(QWidget):
             .folder-title {{
                 font-size: {base_size + 9}px;
                 font-weight: 650;
-                margin: 4px 0 18px 0;
+                margin: 4px 0 4px 0;
                 color: {palette["ink"]};
             }}
+            .folder-meta {{
+                color: {palette["muted"]};
+                font-size: {base_size - 1}px;
+                margin-bottom: 18px;
+            }}
             .prompt-card {{
-                padding: 14px 16px;
-                border-bottom: 1px solid {palette["hairline"]};
+                padding: 15px 16px;
+                margin: 0 0 10px 0;
+                background: {palette["surface_panel"]};
+                border: 1px solid {palette["hairline"]};
+                border-radius: 10px;
             }}
             .prompt-title {{
                 font-size: {base_size + 2}px;
@@ -303,6 +454,7 @@ class EditorPanel(QWidget):
         </style>
         <body>
             <div class='folder-title'>{title}</div>
+            <div class='folder-meta'>{len(prompts)} 个 Prompt · 选择左侧文件可继续编辑</div>
             {body}
         </body>
         """
@@ -326,14 +478,16 @@ class EditorPanel(QWidget):
         self._update_title()
 
     def eventFilter(self, obj, event):
-        if obj in (self.editor, self.preview) and event.type() == event.Type.Wheel:
+        editor = getattr(self, "editor", None)
+        preview = getattr(self, "preview", None)
+        if obj in (editor, preview) and event.type() == event.Type.Wheel:
             if event.modifiers() & Qt.ControlModifier:
                 if event.angleDelta().y() > 0:
                     self.zoom_in()
                 else:
                     self.zoom_out()
                 return True
-        if obj == self.editor and event.type() == event.Type.KeyPress:
+        if obj == editor and event.type() == event.Type.KeyPress:
             if event.key() == Qt.Key_V and event.modifiers() == Qt.ControlModifier:
                 if self._handle_paste():
                     return True

@@ -21,6 +21,23 @@
 - **快捷键可视化** — 主窗口和快速窗口显示快捷键提示
 - **从剪贴板新建** — 工具栏一键从剪贴板创建 Prompt
 
+### 主题与专注体验
+- **卡片化命令中心** — 顶部主题、搜索操作、Prompt 导航与编辑器采用统一的轻边框卡片层级
+- **主题化 Prompt 侧栏** — 自绘线性图标、快捷新建、轻量选中态与紧凑可折叠布局会随主题同步换色
+- **多主题切换** — 内置浅色、深色和“浊心斯卡蒂 · 三形态”主题
+- **三形态背景** — “深海异兆”“血月冠冕”“静海归潮”可独立切换，并同步切换强调色
+- **自定义主题工作台** — 可视化编辑 20 个颜色令牌，并实时预览
+- **主题导入导出** — 使用 JSON 分享或备份个人主题
+- **主题视觉横幅** — 主窗口、Prompt Spotlight 和设置预览会随背景形态同步更新
+- **可复用主题包** — 背景、清单、配色、生成提示词和权利说明位于独立目录，可复制到其他项目
+
+### Prompt 效率信息
+- **内容统计** — 实时显示字符数、行数和 token 估算
+- **收藏、标签与评分** — 在编辑器中直接维护，收藏会影响搜索排序
+- **使用统计** — 统一记录主窗口、搜索结果、侧栏和快速窗口的复制次数
+
+主题可在“设置 → 常规”中切换。选择“浊心斯卡蒂 · 三形态”后，可以继续选择主题背景；点击“自定义”会基于当前形态的配色创建副本。自定义主题可导出为 JSON，也可以在其他设备直接导入。三张背景均为项目内生成素材，不依赖外部网络加载；完整主题包位于 `app/assets/theme_packs/corrupting-heart-skadi/`。
+
 ### 模板变量
 - 将提示词中的可变部分转换为 `{{变量名}}` 格式
 - 支持变量填写表单，生成定制化提示词
@@ -110,11 +127,11 @@ Prompt-Anywhere/
 ### 配置层级
 
 ```
-环境变量 (.env)
+显式系统环境变量
     ↓
-用户配置 (app_config.json)
+用户配置 (app_config.json) / 运行时偏好 (app_state.json)
     ↓
-运行时状态 (app_state.json)
+.env 与 config.yaml 默认值
 ```
 
 ### 主要配置项
@@ -142,8 +159,8 @@ Prompt-Anywhere/
 # 启动应用
 python -m app.main
 
-# 运行测试
-python tests/test_functional.py
+# 运行全部测试
+python -m unittest discover -s tests -v
 
 # Docker操作
 scripts\docker_start.bat      # 启动
@@ -178,7 +195,7 @@ scripts\build_windows_portable.bat
 
 ```bash
 # 运行所有测试
-python tests/test_functional.py
+python -m unittest discover -s tests -v
 ```
 
 ## 许可证

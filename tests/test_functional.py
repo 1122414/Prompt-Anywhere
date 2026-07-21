@@ -34,6 +34,9 @@ class TestConfig(unittest.TestCase):
                 del os.environ[key]
 
         Config._instance = None
+        from app.services.config_service import config_service
+        self._saved_user_config = config_service._user_config
+        config_service._user_config = {}
         from app.services.state_service import StateService
         StateService._instance = None
         self.config = Config()
@@ -51,6 +54,8 @@ class TestConfig(unittest.TestCase):
             elif key in os.environ:
                 del os.environ[key]
         Config._instance = None
+        from app.services.config_service import config_service
+        config_service._user_config = self._saved_user_config
         from app.services.state_service import StateService
         StateService._instance = None
 
@@ -229,6 +234,151 @@ class TestClipboardService(unittest.TestCase):
         self.assertEqual(cs, clipboard_service)
 
 
+class TestThemeSystem(unittest.TestCase):
+    def setUp(self):
+        from app.services.config_service import config_service
+        self.temp_dir = Path(tempfile.mkdtemp())
+        self.config_service = config_service
+        self.original_path = config_service._config_path
+        self.original_user_config = config_service._user_config
+        config_service._config_path = self.temp_dir / "app_config.json"
+        config_service._user_config = {}
+
+    def tearDown(self):
+        self.config_service._config_path = self.original_path
+        self.config_service._user_config = self.original_user_config
+        shutil.rmtree(self.temp_dir)
+
+    def test_skadi_theme_has_complete_palette(self):
+        from app.ui.theme import THEME_COLOR_KEYS, palette_for_theme
+        palette = palette_for_theme("skadi")
+        for key in THEME_COLOR_KEYS:
+            self.assertIn(key, palette)
+        self.assertEqual(palette["canvas"], "#07111F")
+
+    def test_skadi_theme_pack_has_three_valid_variants(self):
+        from app.ui.theme import theme_asset, theme_variant_options
+        from app.ui.theme_pack import load_theme_pack
+
+        pack = load_theme_pack("corrupting-heart-skadi")
+        self.assertEqual(pack["default_variant"], "abyssal-omen")
+        self.assertEqual(len(pack["variants"]), 3)
+        self.assertEqual(
+            list(theme_variant_options("skadi")),
+            ["abyssal-omen", "crimson-coronation", "serene-tide"],
+        )
+        for variant_id in theme_variant_options("skadi"):
+            asset = theme_asset("skadi", variant_id)
+            self.assertIsNotNone(asset)
+            self.assertTrue(asset.exists())
+
+    def test_skadi_variants_apply_distinct_palette_overrides(self):
+        from app.ui.theme import palette_for_theme
+
+        abyssal = palette_for_theme("skadi", "abyssal-omen")
+        crimson = palette_for_theme("skadi", "crimson-coronation")
+        serene = palette_for_theme("skadi", "serene-tide")
+        self.assertEqual(abyssal["accent"], "#35C7DD")
+        self.assertEqual(crimson["canvas"], "#0B0E1E")
+        self.assertEqual(serene["primary"], "#75BFB9")
+        self.assertEqual(serene["on_primary"], "#061318")
+
+    def test_theme_pack_loader_rejects_path_traversal(self):
+        from app.ui.theme_pack import theme_pack_manifest_path
+
+        self.assertIsNone(theme_pack_manifest_path("../corrupting-heart-skadi"))
+
+    def test_custom_theme_round_trip(self):
+        from app.ui.theme import (
+            delete_custom_theme,
+            palette_for_theme,
+            save_custom_theme,
+            theme_options,
+        )
+        palette = palette_for_theme("dark")
+        palette["accent"] = "#3366FF"
+        success, theme_id = save_custom_theme("Ocean Blue", "海风蓝", palette)
+        self.assertTrue(success)
+        self.assertEqual(theme_id, "ocean-blue")
+        self.assertIn("ocean-blue", theme_options())
+        self.assertEqual(palette_for_theme("ocean-blue")["accent"], "#3366FF")
+        self.assertTrue(delete_custom_theme("ocean-blue"))
+
+    def test_custom_theme_rejects_invalid_color(self):
+        from app.ui.theme import palette_for_theme, validate_custom_theme
+        palette = palette_for_theme("light")
+        palette["accent"] = "blue"
+        valid, error = validate_custom_theme({"name": "错误主题", "palette": palette})
+        self.assertFalse(valid)
+        self.assertIn("#RRGGBB", error)
+
+    def test_user_settings_feed_runtime_config(self):
+        from app.config import config
+        custom_data = self.temp_dir / "prompts"
+        self.config_service.set("storage.data_dir", str(custom_data))
+        self.config_service.set("model.name", "user-model")
+        self.config_service.set("window.opacity", 0.82)
+        self.assertEqual(config.data_dir, custom_data.resolve())
+        self.assertEqual(config.model_name, "user-model")
+        self.assertEqual(config.default_window_opacity, 0.82)
+
+
+
+class TestUIInitialization(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from PySide6.QtWidgets import QApplication
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_editor_panel_constructs_without_early_event_filter_crash(self):
+        from app.ui.panels import EditorPanel
+        panel = EditorPanel()
+        self.assertIsNotNone(panel.editor)
+        self.assertIsNotNone(panel.preview)
+        panel.deleteLater()
+
+    def test_settings_and_theme_editor_construct(self):
+        from app.ui.settings_dialog import SettingsDialog
+        from app.ui.theme import palette_for_theme
+        from app.ui.theme_editor_dialog import ThemeEditorDialog
+        settings = SettingsDialog()
+        editor = ThemeEditorDialog("测试主题", palette_for_theme("skadi"))
+        self.assertEqual(settings.settings_stack.count(), 11)
+        settings.theme_combo.setCurrentIndex(settings.theme_combo.findData("skadi"))
+        self.assertEqual(settings.theme_variant_combo.count(), 3)
+        self.assertFalse(settings.theme_preview._pixmap.isNull())
+        self.assertEqual(len(editor.theme_data()[2]), len(palette_for_theme("skadi")))
+        settings.deleteLater()
+        editor.deleteLater()
+
+    def test_sidebar_collapse_uses_parent_splitter(self):
+        from PySide6.QtWidgets import QSplitter, QWidget
+        from app.ui.tree_panel import SidebarItemDelegate, TreePanel
+        splitter = QSplitter()
+        panel = TreePanel()
+        splitter.addWidget(panel)
+        splitter.addWidget(QWidget())
+        self.assertEqual(panel.objectName(), "sidebarCard")
+        self.assertIsInstance(panel.tree.itemDelegate(), SidebarItemDelegate)
+        self.assertTrue(panel.new_prompt_btn.isVisibleTo(panel))
+        panel._toggle_collapse()
+        self.assertTrue(panel._collapsed)
+        self.assertEqual(panel.maximumWidth(), 40)
+        self.assertTrue(panel.tree.isHidden())
+        self.assertTrue(panel.quick_actions_host.isHidden())
+        panel._toggle_collapse()
+        self.assertFalse(panel._collapsed)
+        self.assertFalse(panel.tree.isHidden())
+        splitter.deleteLater()
+
+    def test_quick_window_starts_with_search_empty_state(self):
+        from app.ui.quick_window import QuickWindow
+        window = QuickWindow()
+        self.assertFalse(window.search_result_panel.isVisible())
+        self.assertFalse(window.empty_state.isHidden())
+        window.deleteLater()
+
+
 def run_tests():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
@@ -238,6 +388,8 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestSearchService))
     suite.addTests(loader.loadTestsFromTestCase(TestMarkdownRenderer))
     suite.addTests(loader.loadTestsFromTestCase(TestClipboardService))
+    suite.addTests(loader.loadTestsFromTestCase(TestThemeSystem))
+    suite.addTests(loader.loadTestsFromTestCase(TestUIInitialization))
 
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

@@ -12,8 +12,9 @@ from app.ui.tray import TrayManager
 
 
 def _setup_logging():
+    from app.services.config_service import config_service
     from app.services.logging_service import logging_service
-    log_dir = Path("logs")
+    log_dir = Path(config_service.get("storage.log_dir", "./logs"))
     logging_service.initialize(log_dir, config.log_level)
 
 
@@ -24,7 +25,7 @@ def _initialize_app():
     from app.services.backup_service import backup_service
     from app.services.config_service import config_service
     
-    backup_service.initialize(Path("backups"))
+    backup_service.initialize(Path(config_service.get("storage.backup_dir", "./backups")))
     
     auto_backup_enabled = config_service.get("backup.auto_backup_enabled", True)
     if auto_backup_enabled:

@@ -26,6 +26,11 @@ class TagService(Singleton):
                 logger.warning(f"Failed to load tags: {e}")
                 self._tag_index = {}
 
+    def reload_storage(self):
+        self._tags_file = config.knowledge_base_dir / "tags.json"
+        self._tag_index = {}
+        self._ensure_loaded()
+
     def _save(self):
         try:
             with open(self._tags_file, "w", encoding="utf-8") as f:
